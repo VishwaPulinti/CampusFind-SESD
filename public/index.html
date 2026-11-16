@@ -1,0 +1,1789 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CampusFind AI — Smart Campus Lost-and-Found Portal</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca'
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      transition: background-color 0.25s ease, color 0.25s ease;
+    }
+    .glass {
+      background: rgba(255, 255, 255, 0.72);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+    }
+    .dark .glass {
+      background: rgba(15, 23, 42, 0.68);
+      border: 1px solid rgba(148, 163, 184, 0.16);
+    }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(203, 213, 225, 0.5);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .dark .glass-card {
+      background: rgba(30, 41, 59, 0.62);
+      border: 1px solid rgba(148, 163, 184, 0.15);
+    }
+    .glass-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(99, 102, 241, 0.45);
+      box-shadow: 0 12px 30px -10px rgba(79, 70, 229, 0.2);
+    }
+    .bg-mesh {
+      background-color: #f8fafc;
+      background-image:
+        radial-gradient(at 10% 10%, rgba(99, 102, 241, 0.12) 0px, transparent 50%),
+        radial-gradient(at 90% 15%, rgba(16, 185, 129, 0.10) 0px, transparent 50%),
+        radial-gradient(at 50% 90%, rgba(14, 165, 233, 0.10) 0px, transparent 55%);
+    }
+    .dark .bg-mesh {
+      background-color: #090d16;
+      background-image:
+        radial-gradient(at 10% 10%, rgba(99, 102, 241, 0.18) 0px, transparent 50%),
+        radial-gradient(at 90% 15%, rgba(16, 185, 129, 0.12) 0px, transparent 50%),
+        radial-gradient(at 50% 90%, rgba(56, 189, 248, 0.10) 0px, transparent 55%);
+    }
+    @keyframes fadeSlideUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-in {
+      animation: fadeSlideUp 0.28s ease-out forwards;
+    }
+    .skeleton {
+      background: linear-gradient(90deg, rgba(148,163,184,0.15) 25%, rgba(148,163,184,0.28) 50%, rgba(148,163,184,0.15) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+    }
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.35); border-radius: 9999px; }
+  </style>
+
+  <style>
+    body:not(.campusfind-authenticated) > header,
+    body:not(.campusfind-authenticated) > .max-w-7xl,
+    body:not(.campusfind-authenticated) > button[onclick="toggleChatbot()"],
+    body:not(.campusfind-authenticated) > #chatbot-drawer { display:none !important; }
+  </style>
+
+</head>
+<body class="bg-mesh text-slate-900 dark:text-slate-100 min-h-screen antialiased selection:bg-brand-500 selection:text-white">
+
+  <!-- Login-first screen: dashboard remains hidden until successful sign-in -->
+  <section id="login-screen" class="fixed inset-0 z-[100] min-h-screen flex items-center justify-center p-4 bg-slate-950">
+    <div class="absolute inset-0 opacity-80" style="background:radial-gradient(circle at 15% 20%,rgba(99,102,241,.35),transparent 35%),radial-gradient(circle at 85% 80%,rgba(6,182,212,.25),transparent 35%)"></div>
+    <div class="relative w-full max-w-5xl grid md:grid-cols-2 overflow-hidden rounded-3xl border border-white/10 shadow-2xl bg-slate-900/90">
+      <div class="hidden md:flex flex-col justify-between p-10 bg-gradient-to-br from-indigo-600 via-blue-700 to-cyan-700 text-white">
+        <div>
+          <div class="text-sm font-bold tracking-[.2em] uppercase text-white/75">SR University</div>
+          <h1 class="mt-8 text-5xl font-extrabold leading-tight">Campus<span class="text-cyan-200">Find</span></h1>
+          <p class="mt-5 text-lg text-white/85 leading-relaxed">Your campus lost-and-found community. Sign in to report items, discover found belongings and manage claims.</p>
+        </div>
+        <div class="text-sm text-white/70">Smart Campus Lost &amp; Found Portal</div>
+      </div>
+      <div class="p-7 sm:p-10 text-slate-100">
+        <div class="md:hidden text-xs font-bold tracking-[.2em] uppercase text-cyan-300">SR University · CampusFind</div>
+        <h2 id="login-heading" class="mt-2 text-3xl font-bold">Welcome back</h2>
+        <p id="login-subheading" class="mt-2 text-sm text-slate-400">Sign in to continue to your dashboard.</p>
+        <div class="mt-7 flex rounded-xl bg-slate-800 p-1">
+          <button id="login-mode-btn" type="button" class="flex-1 rounded-lg py-2 text-sm font-semibold bg-indigo-600 text-white">Login</button>
+          <button id="register-mode-btn" type="button" class="flex-1 rounded-lg py-2 text-sm font-semibold text-slate-300">Register</button>
+        </div>
+        <form id="login-first-form" class="mt-6 space-y-4">
+          <div id="login-name-wrap" class="hidden">
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Full name</label>
+            <input id="login-name" type="text" autocomplete="name" class="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-white outline-none focus:border-indigo-400" placeholder="Enter your full name">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Campus email</label>
+            <input id="login-email" type="email" required autocomplete="username" class="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-white outline-none focus:border-indigo-400" placeholder="name@university.edu">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Password</label>
+            <input id="login-password" type="password" required minlength="6" autocomplete="current-password" class="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-white outline-none focus:border-indigo-400" placeholder="Enter password">
+          </div>
+          <button id="login-submit" type="submit" class="w-full rounded-xl bg-indigo-600 hover:bg-indigo-500 py-3 font-semibold text-white shadow-lg shadow-indigo-900/40">Login to Dashboard</button>
+          <p id="login-error" class="min-h-5 text-sm text-rose-400" role="alert"></p>
+        </form>
+        <p class="mt-4 text-xs leading-relaxed text-slate-500">Demo note: this standalone HTML document saves registered demo accounts in this browser only. It is not connected to a secure server or MongoDB.</p>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+  <!-- Top Navigation Bar -->
+  <header class="sticky top-0 z-40 glass">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-cyan-500 flex items-center justify-center text-white font-bold shadow-lg shadow-brand-500/25 shrink-0">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/>
+          </svg>
+        </div>
+        <div class="truncate">
+          <div class="font-bold text-base tracking-tight flex items-center gap-2">
+            <span>CampusFind</span>
+            <span class="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-brand-500/15 text-brand-600 dark:text-brand-400 font-semibold">AI Verified</span>
+          </div>
+          <p class="text-[11px] text-slate-500 dark:text-slate-400 hidden sm:block">Smart Campus Lost &amp; Found Portal</p>
+        </div>
+      </div>
+
+      <!-- Portal Switcher & Controls -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        <!-- Role Switcher -->
+        <div class="inline-flex rounded-xl p-1 bg-slate-200/70 dark:bg-slate-800/80 border border-slate-300/50 dark:border-slate-700/60">
+          <button id="btn-role-user" onclick="switchRole('user')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-white dark:bg-brand-600 text-slate-900 dark:text-white shadow-sm">
+            User Portal
+          </button>
+          <button id="btn-role-admin" onclick="switchRole('admin')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white">
+            Admin Portal
+          </button>
+        </div>
+
+        <!-- Notification Bell -->
+        <button onclick="openModal('notifications-modal')" class="relative p-2 rounded-xl bg-slate-200/60 dark:bg-slate-800/70 hover:bg-slate-300/60 dark:hover:bg-slate-700/70 transition" title="Notifications">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"/>
+          </svg>
+          <span id="notif-badge" class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">3</span>
+        </button>
+
+        <!-- Theme Toggle -->
+        <button onclick="toggleTheme()" class="p-2 rounded-xl bg-slate-200/60 dark:bg-slate-800/70 hover:bg-slate-300/60 dark:hover:bg-slate-700/70 transition" title="Toggle Dark/Light Mode">
+          <svg id="icon-sun" class="w-5 h-5 hidden dark:block text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z"/>
+          </svg>
+          <svg id="icon-moon" class="w-5 h-5 block dark:hidden text-slate-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z"/>
+          </svg>
+        </button>
+
+        <!-- Auth / Profile Button -->
+        <button onclick="openModal('auth-modal')" class="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold shadow-sm transition">
+          <span id="header-avatar" class="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center text-[11px] font-bold">VP</span>
+          <span id="header-user-name" class="hidden sm:inline">Vikas Palitha</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <!-- Sub-Navigation Tabs -->
+    <nav id="sub-nav" class="flex flex-wrap items-center gap-2 mb-6 pb-2 border-b border-slate-200/70 dark:border-slate-800/80"></nav>
+
+    <!-- Dynamic View Container -->
+    <main id="app-view" class="animate-in"></main>
+  </div>
+
+  <!-- AI Assistant Floating Button -->
+  <button onclick="toggleChatbot()" class="fixed bottom-5 right-5 z-40 w-13 h-13 px-4 py-3 rounded-2xl bg-gradient-to-r from-brand-600 to-cyan-600 text-white shadow-xl shadow-brand-500/30 hover:scale-105 transition flex items-center gap-2 font-semibold text-sm">
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"/>
+    </svg>
+    <span class="hidden sm:inline">AI Assistant</span>
+  </button>
+
+  <!-- AI Chatbot Drawer -->
+  <div id="chatbot-drawer" class="hidden fixed bottom-20 right-5 z-40 w-80 sm:w-96 glass rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[70vh]">
+    <div class="px-4 py-3 bg-gradient-to-r from-brand-600 to-cyan-600 text-white flex items-center justify-between">
+      <div>
+        <div class="font-semibold text-sm">CampusFind AI Assistant</div>
+        <div class="text-[11px] text-white/80">Smart matching, claim help &amp; policy guide</div>
+      </div>
+      <button onclick="toggleChatbot()" class="p-1 rounded-lg hover:bg-white/20">✕</button>
+    </div>
+    <div id="chat-messages" class="p-4 space-y-3 overflow-y-auto flex-1 text-sm">
+      <div class="p-3 rounded-xl bg-slate-200/70 dark:bg-slate-800/80 text-slate-800 dark:text-slate-200">
+        Hi! I can help you find matching lost/found items, check claim verification requirements, or guide you through reporting an item. What did you lose or find?
+      </div>
+    </div>
+    <form onsubmit="sendChatMessage(event)" class="p-3 border-t border-slate-200/70 dark:border-slate-700/60 flex gap-2">
+      <input id="chat-input" type="text" placeholder="Ask about a lost item or claim..." class="flex-1 px-3 py-2 rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-300/60 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
+      <button type="submit" class="px-3 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold">Send</button>
+    </form>
+  </div>
+
+  <!-- MODALS -->
+  <!-- Auth Modal -->
+  <div id="auth-modal" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="glass rounded-2xl max-w-md w-full p-6 shadow-2xl animate-in">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-bold">Account &amp; Authentication</h3>
+        <button onclick="closeModal('auth-modal')" class="p-1.5 rounded-lg hover:bg-slate-200/50 dark:hover:bg-slate-800">✕</button>
+      </div>
+      <div class="flex gap-2 mb-4 bg-slate-200/60 dark:bg-slate-800/70 p-1 rounded-xl">
+        <button onclick="setAuthTab('login')" id="auth-tab-login" class="flex-1 py-1.5 rounded-lg text-xs font-semibold bg-white dark:bg-brand-600 shadow-sm">Login</button>
+        <button onclick="setAuthTab('register')" id="auth-tab-register" class="flex-1 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-300">Register</button>
+        <button onclick="setAuthTab('reset')" id="auth-tab-reset" class="flex-1 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-300">Reset Password</button>
+      </div>
+      <div id="auth-body"></div>
+    </div>
+  </div>
+
+  <!-- Notifications Modal -->
+  <div id="notifications-modal" class="hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="glass rounded-2xl max-w-lg w-full p-6 shadow-2xl animate-in max-h-[80vh] flex flex-col">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-bold">Real-Time Notifications</h3>
+        <div class="flex items-center gap-2">
+          <button onclick="markAllRead()" class="text-xs font-semibold text-brand-600 dark:text-brand-400 hover:underline">Mark all read</button>
+          <button onclick="closeModal('notifications-modal')" class="p-1.5 rounded-lg hover:bg-slate-200/50 dark:hover:bg-slate-800">✕</button>
+        </div>
+      </div>
+      <div id="notifications-list" class="space-y-2.5 overflow-y-auto pr-1"></div>
+    </div>
+  </div>
+
+  <!-- Item Detail & Image Zoom Modal -->
+  <div id="item-modal" class="hidden fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="glass rounded-2xl max-w-2xl w-full p-6 shadow-2xl animate-in max-h-[90vh] overflow-y-auto">
+      <div id="item-modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Claim Submission Modal -->
+  <div id="claim-modal" class="hidden fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="glass rounded-2xl max-w-lg w-full p-6 shadow-2xl animate-in max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-bold">Submit Ownership Claim</h3>
+        <button onclick="closeModal('claim-modal')" class="p-1.5 rounded-lg hover:bg-slate-200/50 dark:hover:bg-slate-800">✕</button>
+      </div>
+      <div id="claim-modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Admin Claim Review Modal -->
+  <div id="review-claim-modal" class="hidden fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="glass rounded-2xl max-w-2xl w-full p-6 shadow-2xl animate-in max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-bold">Claim Verification Review</h3>
+        <button onclick="closeModal('review-claim-modal')" class="p-1.5 rounded-lg hover:bg-slate-200/50 dark:hover:bg-slate-800">✕</button>
+      </div>
+      <div id="review-claim-body"></div>
+    </div>
+  </div>
+
+<script>
+// ==================== STATE & DATA ====================
+const state = {
+  role: 'user', // 'user' | 'admin'
+  userTab: 'dashboard',
+  adminTab: 'dashboard',
+  authTab: 'login',
+  currentUser: {
+    id: 'USR-101',
+    name: 'Vikas Palitha',
+    email: 'vikas.palitha@sru.edu.in',
+    role: 'Student',
+    department: 'Computer Science & Engineering',
+    phone: '+91 98765 43210',
+    verified: true,
+    status: 'Active'
+  },
+  categories: ['Electronics', 'ID Cards & Wallets', 'Keys & Access', 'Bags & Backpacks', 'Books & Notes', 'Wearables & Accessories'],
+  locations: ['Central Library', 'Academic Block A', 'Cafeteria & Food Court', 'Sports Complex', 'Main Auditorium', 'Hostel Block C', 'Innovation Lab'],
+  filters: {
+    query: '',
+    type: 'all',
+    category: 'all',
+    location: 'all',
+    status: 'all',
+    date: ''
+  },
+  items: [
+    {
+      id: 'ITM-201',
+      type: 'found',
+      images: ['https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=900&auto=format&fit=crop&q=85'],
+      title: 'Apple MacBook Air M2 (Space Gray)',
+      category: 'Electronics',
+      description: 'Found on 2nd floor study table near power outlets. Has a small university robotics sticker on the lid.',
+      date: '2026-11-15',
+      location: 'Central Library',
+      storageLocation: 'Security Desk - Block A',
+      status: 'Available',
+      serial: 'C02YM4K9JGH5',
+      reward: '',
+      contact: 'library.desk@sru.edu.in',
+      reporterId: 'USR-104',
+      reporterName: 'Ananya Sharma',
+      approved: true,
+      archived: false,
+      icon: 'laptop',
+      color: 'from-indigo-500 to-blue-600'
+    },
+    {
+      id: 'ITM-202',
+      type: 'lost',
+      images: ['https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=900&auto=format&fit=crop&q=85'],
+      title: 'MacBook Air M2 13-inch',
+      category: 'Electronics',
+      description: 'Left in Central Library quiet reading zone around 4:30 PM. Space Gray with robotics club sticker.',
+      date: '2026-11-15',
+      location: 'Central Library',
+      storageLocation: '',
+      status: 'Open',
+      serial: 'C02YM4K9JGH5',
+      reward: '₹1,500',
+      contact: 'vikas.palitha@sru.edu.in',
+      reporterId: 'USR-101',
+      reporterName: 'Vikas Palitha',
+      approved: true,
+      archived: false,
+      icon: 'laptop',
+      color: 'from-rose-500 to-orange-500'
+    },
+    {
+      id: 'ITM-203',
+      type: 'found',
+      images: ['https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=900&auto=format&fit=crop&q=85'],
+      title: 'Sony WH-1000XM5 Wireless Headphones',
+      category: 'Electronics',
+      description: 'Black over-ear headphones inside hard zip case, found under table #12.',
+      date: '2026-11-14',
+      location: 'Cafeteria & Food Court',
+      storageLocation: 'Student Affairs Office',
+      status: 'Claim Pending',
+      serial: 'SN-8841209',
+      reward: '',
+      contact: 'security@sru.edu.in',
+      reporterId: 'USR-105',
+      reporterName: 'Kiran Reddy',
+      approved: true,
+      archived: false,
+      icon: 'headphones',
+      color: 'from-emerald-500 to-teal-600'
+    },
+    {
+      id: 'ITM-204',
+      type: 'found',
+      images: ['https://images.unsplash.com/photo-1627123424574-724758594e93?w=900&auto=format&fit=crop&q=85'],
+      title: 'Brown Leather Wallet & Student ID',
+      category: 'ID Cards & Wallets',
+      description: 'Contains campus smart card and metro pass. Turned in at main gate reception.',
+      date: '2026-11-13',
+      location: 'Main Auditorium',
+      storageLocation: 'Main Gate Security',
+      status: 'Available',
+      serial: 'ID-22CS1094',
+      reward: '',
+      contact: 'gate1@sru.edu.in',
+      reporterId: 'USR-102',
+      reporterName: 'Dr. Meera Nair',
+      approved: true,
+      archived: false,
+      icon: 'wallet',
+      color: 'from-amber-500 to-orange-600'
+    },
+    {
+      id: 'ITM-205',
+      type: 'lost',
+      images: ['https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=900&auto=format&fit=crop&q=85'],
+      title: 'Black Wildcraft Laptop Backpack',
+      category: 'Bags & Backpacks',
+      description: 'Contains CSE lab manual, blue water bottle, and Logitech wireless mouse.',
+      date: '2026-11-12',
+      location: 'Academic Block A',
+      storageLocation: '',
+      status: 'Open',
+      serial: '',
+      reward: '₹500',
+      contact: 'rohan.v@sru.edu.in',
+      reporterId: 'USR-103',
+      reporterName: 'Rohan Verma',
+      approved: true,
+      archived: false,
+      icon: 'bag',
+      color: 'from-purple-500 to-pink-600'
+    },
+    {
+      id: 'ITM-206',
+      type: 'found',
+      images: ['https://images.unsplash.com/photo-1582139329536-e7284fece509?w=900&auto=format&fit=crop&q=85'],
+      title: 'Yamaha Bike Key with Red Keychain',
+      category: 'Keys & Access',
+      description: 'Found near basketball court bleachers after evening practice.',
+      date: '2026-11-11',
+      location: 'Sports Complex',
+      storageLocation: 'Sports Complex Desk',
+      status: 'Returned',
+      serial: '',
+      reward: '',
+      contact: 'sports@sru.edu.in',
+      reporterId: 'USR-106',
+      reporterName: 'Coach Arvind',
+      approved: true,
+      archived: false,
+      icon: 'key',
+      color: 'from-cyan-500 to-sky-600'
+    }
+  ],
+  claims: [
+    {
+      id: 'CLM-501',
+      itemId: 'ITM-203',
+      itemTitle: 'Sony WH-1000XM5 Wireless Headphones',
+      claimantId: 'USR-101',
+      claimantName: 'Vikas Palitha',
+      date: '2026-11-15',
+      status: 'Pending',
+      ownershipAnswer: 'Left earcup has a faint scratch near the USB-C port; case has a spare AUX cable inside.',
+      proofReceipt: 'Amazon_Invoice_XM5.pdf',
+      proofIdCard: 'SRU_ID_Vikas.jpg',
+      fraudScore: 8,
+      notes: ''
+    },
+    {
+      id: 'CLM-502',
+      itemId: 'ITM-206',
+      itemTitle: 'Yamaha Bike Key with Red Keychain',
+      claimantId: 'USR-103',
+      claimantName: 'Rohan Verma',
+      date: '2026-11-12',
+      status: 'Approved',
+      ownershipAnswer: 'Red rubber keychain with "FZ-S" embossed and a small brass hostel locker key attached.',
+      proofReceipt: 'RC_Copy_Bike.pdf',
+      proofIdCard: 'SRU_ID_Rohan.jpg',
+      fraudScore: 4,
+      notes: 'Verified physical key against bike at parking bay B.'
+    }
+  ],
+  users: [
+    { id: 'USR-101', name: 'Vikas Palitha', email: 'vikas.palitha@sru.edu.in', role: 'Student', department: 'CSE', status: 'Active', joined: '2025-08-12' },
+    { id: 'USR-102', name: 'Dr. Meera Nair', email: 'meera.nair@sru.edu.in', role: 'Faculty', department: 'ECE', status: 'Active', joined: '2024-07-01' },
+    { id: 'USR-103', name: 'Rohan Verma', email: 'rohan.v@sru.edu.in', role: 'Student', department: 'Mechanical', status: 'Active', joined: '2025-08-18' },
+    { id: 'USR-104', name: 'Ananya Sharma', email: 'ananya.s@sru.edu.in', role: 'Student', department: 'AI & ML', status: 'Active', joined: '2025-09-02' },
+    { id: 'USR-105', name: 'Kiran Reddy', email: 'kiran.r@sru.edu.in', role: 'Staff', department: 'Administration', status: 'Suspended', joined: '2023-11-10' }
+  ],
+  notifications: [
+    { id: 'N-1', type: 'match', title: 'AI Match Found (96% Confidence)', message: 'Found item "Apple MacBook Air M2" matches your lost report ITM-202 at Central Library.', time: '10 mins ago', unread: true },
+    { id: 'N-2', type: 'claim', title: 'Claim CLM-501 Under Review', message: 'Admin is verifying your ownership proof for Sony WH-1000XM5.', time: '2 hours ago', unread: true },
+    { id: 'N-3', type: 'announcement', title: 'Campus Security Notice', message: 'All unclaimed items over 60 days are archived at the Central Security Vault.', time: '1 day ago', unread: true }
+  ],
+  activityLogs: [
+    { time: '11:02 AM', actor: 'AI Engine', action: 'Detected 96% match between ITM-201 and ITM-202 (Serial + Location)' },
+    { time: '10:45 AM', actor: 'Vikas Palitha', action: 'Submitted Claim CLM-501 with receipt & campus ID' },
+    { time: '09:15 AM', actor: 'Ananya Sharma', action: 'Reported Found Item ITM-201 at Central Library' }
+  ],
+  charts: {}
+};
+
+// ==================== HELPERS ====================
+function showToast(msg, type = 'info') {
+  const container = document.getElementById('toast-container');
+  const colors = {
+    success: 'bg-emerald-600 text-white',
+    error: 'bg-rose-600 text-white',
+    warning: 'bg-amber-500 text-slate-950',
+    info: 'bg-brand-600 text-white'
+  };
+  const el = document.createElement('div');
+  el.className = `pointer-events-auto px-4 py-3 rounded-xl shadow-lg text-xs sm:text-sm font-medium flex items-center justify-between gap-3 animate-in ${colors[type] || colors.info}`;
+  el.innerHTML = `<span>${msg}</span><button onclick="this.parentElement.remove()" class="opacity-80 hover:opacity-100 font-bold">✕</button>`;
+  container.appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+function toggleTheme() {
+  document.documentElement.classList.toggle('dark');
+  if (state.role === 'admin' && state.adminTab === 'dashboard') {
+    setTimeout(renderAdminCharts, 50);
+  }
+}
+
+function openModal(id) {
+  document.getElementById(id).classList.remove('hidden');
+  if (id === 'notifications-modal') renderNotifications();
+  if (id === 'auth-modal') renderAuthBody();
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.add('hidden');
+}
+
+function getItemSvg(icon) {
+  const paths = {
+    laptop: '<path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25"/>',
+    headphones: '<path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z"/>',
+    wallet: '<path stroke-linecap="round" stroke-linejoin="round" d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3"/>',
+    bag: '<path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z"/>',
+    key: '<path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z"/>'
+  };
+  return `<svg class="w-10 h-10 text-white/95" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">${paths[icon] || paths.bag}</svg>`;
+}
+
+function statusBadge(status) {
+  const map = {
+    'Available': 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
+    'Open': 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30',
+    'Claim Pending': 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30',
+    'Pending': 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30',
+    'Approved': 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
+    'Returned': 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border-cyan-500/30',
+    'Rejected': 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30'
+  };
+  return `<span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${map[status] || 'bg-slate-500/15 text-slate-400'}">${status}</span>`;
+}
+
+// ==================== ROLE & NAVIGATION ====================
+function switchRole(role) {
+  state.role = role;
+  const uBtn = document.getElementById('btn-role-user');
+  const aBtn = document.getElementById('btn-role-admin');
+  if (role === 'user') {
+    uBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-white dark:bg-brand-600 text-slate-900 dark:text-white shadow-sm';
+    aBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white';
+  } else {
+    aBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-white dark:bg-brand-600 text-slate-900 dark:text-white shadow-sm';
+    uBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white';
+  }
+  renderApp();
+}
+
+function setTab(tab) {
+  if (state.role === 'user') state.userTab = tab;
+  else state.adminTab = tab;
+  renderApp();
+}
+
+function renderNav() {
+  const nav = document.getElementById('sub-nav');
+  const userTabs = [
+    { id: 'dashboard', label: 'Dashboard' },
+    { id: 'search', label: 'Search & Gallery' },
+    { id: 'report-lost', label: 'Report Lost' },
+    { id: 'report-found', label: 'Report Found' },
+    { id: 'claims', label: 'My Claims' },
+    { id: 'profile', label: 'Profile' }
+  ];
+  const adminTabs = [
+    { id: 'dashboard', label: 'Analytics Dashboard' },
+    { id: 'claims', label: 'Claim Verification' },
+    { id: 'items', label: 'Lost & Found Items' },
+    { id: 'users', label: 'User Management' },
+    { id: 'reports', label: 'Reports & Export' },
+    { id: 'settings', label: 'System Settings' }
+  ];
+  const tabs = state.role === 'user' ? userTabs : adminTabs;
+  const active = state.role === 'user' ? state.userTab : state.adminTab;
+  nav.innerHTML = tabs.map(t => `
+    <button onclick="setTab('${t.id}')" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition ${active === t.id ? 'bg-brand-600 text-white shadow-md shadow-brand-500/25' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800/70'}">
+      ${t.label}
+    </button>
+  `).join('');
+}
+
+function renderApp() {
+  renderNav();
+  updateNotifBadge();
+  const view = document.getElementById('app-view');
+  if (state.role === 'user') {
+    if (state.userTab === 'dashboard') view.innerHTML = renderUserDashboard();
+    else if (state.userTab === 'search') view.innerHTML = renderSearchGallery();
+    else if (state.userTab === 'report-lost') view.innerHTML = renderReportForm('lost');
+    else if (state.userTab === 'report-found') view.innerHTML = renderReportForm('found');
+    else if (state.userTab === 'claims') view.innerHTML = renderUserClaims();
+    else if (state.userTab === 'profile') view.innerHTML = renderUserProfile();
+  } else {
+    if (state.adminTab === 'dashboard') {
+      view.innerHTML = renderAdminDashboard();
+      setTimeout(renderAdminCharts, 30);
+    }
+    else if (state.adminTab === 'claims') view.innerHTML = renderAdminClaims();
+    else if (state.adminTab === 'items') view.innerHTML = renderAdminItems();
+    else if (state.adminTab === 'users') view.innerHTML = renderAdminUsers();
+    else if (state.adminTab === 'reports') view.innerHTML = renderAdminReports();
+    else if (state.adminTab === 'settings') view.innerHTML = renderAdminSettings();
+  }
+}
+
+// ==================== USER PORTAL VIEWS ====================
+function renderUserDashboard() {
+  const lostCount = state.items.filter(i => i.type === 'lost' && !i.archived).length;
+  const foundCount = state.items.filter(i => i.type === 'found' && !i.archived).length;
+  const pendingClaims = state.claims.filter(c => c.status === 'Pending').length;
+  const returnedCount = state.items.filter(i => i.status === 'Returned').length;
+
+  return `
+    <div class="space-y-6">
+      <!-- Hero Banner -->
+      <div class="glass-card rounded-2xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <span class="text-xs font-semibold uppercase tracking-wider text-brand-600 dark:text-brand-400">Welcome back, ${state.currentUser.name}</span>
+          <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1">Smart Campus Lost &amp; Found</h1>
+          <p class="text-sm text-slate-600 dark:text-slate-400 mt-1 max-w-2xl">Report lost or found belongings, discover AI-matched items across campus, and verify ownership securely.</p>
+        </div>
+        <div class="flex flex-wrap gap-2.5">
+          <button onclick="setTab('report-lost')" class="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold shadow-sm transition">+ Report Lost</button>
+          <button onclick="setTab('report-found')" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold shadow-sm transition">+ Report Found</button>
+        </div>
+      </div>
+
+      <!-- KPI Grid -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        ${kpiCard('Total Lost Items', lostCount, 'Active campus reports', 'text-rose-500')}
+        ${kpiCard('Total Found Items', foundCount, 'Held at security desks', 'text-emerald-500')}
+        ${kpiCard('Pending Claims', pendingClaims, 'Awaiting verification', 'text-amber-500')}
+        ${kpiCard('Claimed & Returned', returnedCount, 'Verified handovers', 'text-cyan-500')}
+      </div>
+
+      <!-- AI Smart Match Banner -->
+      <div class="glass-card rounded-2xl p-5 border-l-4 border-l-brand-500">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div class="flex items-start gap-3">
+            <div class="w-10 h-10 rounded-xl bg-brand-500/15 text-brand-500 flex items-center justify-center shrink-0 font-bold text-sm">AI</div>
+            <div>
+              <div class="flex items-center gap-2 flex-wrap">
+                <h3 class="font-bold text-base">AI Smart Match Detected — 96% Confidence</h3>
+                <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-brand-500/15 text-brand-500">Serial + Location Match</span>
+              </div>
+              <p class="text-sm text-slate-600 dark:text-slate-400 mt-1">Found item <strong>Apple MacBook Air M2</strong> at Central Library matches your lost report <strong>ITM-202</strong>.</p>
+            </div>
+          </div>
+          <button onclick="openClaimModal('ITM-201')" class="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs sm:text-sm font-semibold shrink-0 transition">
+            Claim This Item
+          </button>
+        </div>
+      </div>
+
+      <!-- Recent Items & Notifications -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 space-y-3">
+          <div class="flex items-center justify-between">
+            <h2 class="text-lg font-bold">Recent Campus Items</h2>
+            <button onclick="setTab('search')" class="text-xs font-semibold text-brand-600 dark:text-brand-400 hover:underline">View All →</button>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            ${state.items.filter(i => !i.archived && i.approved).slice(0, 4).map(itemCard).join('')}
+          </div>
+        </div>
+        <div class="space-y-3">
+          <h2 class="text-lg font-bold">Latest Notifications</h2>
+          <div class="glass-card rounded-2xl p-4 space-y-3">
+            ${state.notifications.slice(0, 4).map(n => `
+              <div class="p-3 rounded-xl bg-slate-100/80 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/50">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-xs font-bold text-brand-600 dark:text-brand-400">${n.title}</span>
+                  <span class="text-[10px] text-slate-500">${n.time}</span>
+                </div>
+                <p class="text-xs text-slate-600 dark:text-slate-300 mt-1">${n.message}</p>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function kpiCard(title, value, sub, colorClass) {
+  return `
+    <div class="glass-card rounded-2xl p-4 sm:p-5">
+      <div class="text-xs font-medium text-slate-500 dark:text-slate-400">${title}</div>
+      <div class="text-2xl sm:text-3xl font-extrabold mt-1 ${colorClass}">${value}</div>
+      <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">${sub}</div>
+    </div>
+  `;
+}
+
+function itemCard(item) {
+  return `
+    <div class="glass-card rounded-2xl overflow-hidden flex flex-col">
+      <div class="h-44 bg-gradient-to-br ${item.color} relative overflow-hidden">
+        ${item.images && item.images.length
+          ? `<img src="${item.images[0]}" alt="${item.title}" class="w-full h-full object-cover" />`
+          : `<div class="w-full h-full p-4 flex items-center justify-center">${getItemSvg(item.icon)}<span class="ml-3 text-white text-xs font-semibold">No photo</span></div>`}
+        <span class="absolute top-3 right-3 px-2.5 py-1 rounded-lg bg-black/55 backdrop-blur-md text-white text-[11px] font-semibold uppercase">${item.type}</span>
+        ${item.images && item.images.length > 1 ? `<span class="absolute bottom-3 right-3 px-2 py-1 rounded-lg bg-black/60 text-white text-[10px]">${item.images.length} photos</span>` : ''}
+      </div>
+      <div class="p-4 flex-1 flex flex-col justify-between gap-3">
+        <div>
+          <div class="flex items-start justify-between gap-2">
+            <h3 class="font-bold text-sm leading-snug">${item.title}</h3>
+          </div>
+          <div class="flex items-center gap-2 mt-2 flex-wrap">
+            ${statusBadge(item.status)}
+            <span class="text-[11px] text-slate-500 dark:text-slate-400">${item.category}</span>
+          </div>
+          <p class="text-xs text-slate-600 dark:text-slate-400 mt-2 line-clamp-2">${item.description}</p>
+        </div>
+        <div class="pt-3 border-t border-slate-200/60 dark:border-slate-700/50 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+          <span>📍 ${item.location} • ${item.date}</span>
+          <button onclick="openItemDetail('${item.id}')" class="font-semibold text-brand-600 dark:text-brand-400 hover:underline">Details →</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderSearchGallery() {
+  const f = state.filters;
+  const filtered = state.items.filter(i => {
+    if (i.archived || !i.approved) return false;
+    if (f.type !== 'all' && i.type !== f.type) return false;
+    if (f.category !== 'all' && i.category !== f.category) return false;
+    if (f.location !== 'all' && i.location !== f.location) return false;
+    if (f.status !== 'all' && i.status !== f.status) return false;
+    if (f.date && i.date !== f.date) return false;
+    if (f.query) {
+      const q = f.query.toLowerCase();
+      return i.title.toLowerCase().includes(q) || i.description.toLowerCase().includes(q) || i.serial.toLowerCase().includes(q);
+    }
+    return true;
+  });
+
+  return `
+    <div class="space-y-6">
+      <div class="glass-card rounded-2xl p-5 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <h2 class="text-lg font-bold">Search &amp; Filter Campus Items</h2>
+          <button onclick="resetFilters()" class="text-xs font-semibold text-brand-600 dark:text-brand-400 hover:underline self-start sm:self-auto">Reset Filters</button>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+          <input type="text" value="${f.query}" oninput="updateFilter('query', this.value)" placeholder="Search name, serial, keyword..." class="lg:col-span-2 px-3.5 py-2 rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-300/60 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
+          <select onchange="updateFilter('type', this.value)" class="px-3 py-2 rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-300/60 dark:border-slate-700 text-sm">
+            <option value="all" ${f.type==='all'?'selected':''}>All Types</option>
+            <option value="lost" ${f.type==='lost'?'selected':''}>Lost Only</option>
+            <option value="found" ${f.type==='found'?'selected':''}>Found Only</option>
+          </select>
+          <select onchange="updateFilter('category', this.value)" class="px-3 py-2 rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-300/60 dark:border-slate-700 text-sm">
+            <option value="all">All Categories</option>
+            ${state.categories.map(c => `<option value="${c}" ${f.category===c?'selected':''}>${c}</option>`).join('')}
+          </select>
+          <select onchange="updateFilter('location', this.value)" class="px-3 py-2 rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-300/60 dark:border-slate-700 text-sm">
+            <option value="all">All Locations</option>
+            ${state.locations.map(l => `<option value="${l}" ${f.location===l?'selected':''}>${l}</option>`).join('')}
+          </select>
+          <select onchange="updateFilter('status', this.value)" class="px-3 py-2 rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-300/60 dark:border-slate-700 text-sm">
+            <option value="all">All Statuses</option>
+            <option value="Available" ${f.status==='Available'?'selected':''}>Available</option>
+            <option value="Open" ${f.status==='Open'?'selected':''}>Open</option>
+            <option value="Claim Pending" ${f.status==='Claim Pending'?'selected':''}>Claim Pending</option>
+            <option value="Returned" ${f.status==='Returned'?'selected':''}>Returned</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="text-xs font-medium text-slate-500 dark:text-slate-400">Showing ${filtered.length} matching item(s)</div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        ${filtered.length ? filtered.map(itemCard).join('') : '<div class="col-span-full glass-card rounded-2xl p-10 text-center text-sm text-slate-500">No items match your current filters.</div>'}
+      </div>
+    </div>
+  `;
+}
+
+function updateFilter(key, val) {
+  state.filters[key] = val;
+  renderApp();
+}
+
+function resetFilters() {
+  state.filters = { query: '', type: 'all', category: 'all', location: 'all', status: 'all', date: '' };
+  renderApp();
+}
+
+function renderReportForm(type) {
+  const isLost = type === 'lost';
+  return `
+    <div class="max-w-2xl mx-auto glass-card rounded-2xl p-6 space-y-5">
+      <div>
+        <span class="text-xs font-semibold uppercase tracking-wider ${isLost ? 'text-rose-500' : 'text-emerald-500'}">${isLost ? 'Lost Item Report' : 'Found Item Report'}</span>
+        <h2 class="text-xl font-bold mt-1">${isLost ? 'Report a Lost Item' : 'Report a Found Item'}</h2>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">AI smart category prediction, duplicate check, and serial OCR run automatically on submission.</p>
+      </div>
+      <form onsubmit="submitItemReport(event, '${type}')" class="space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold mb-1">Item Name *</label>
+            <input required id="rep-title" oninput="predictCategory(this.value)" type="text" placeholder="e.g. Dell XPS 13 Laptop" class="w-full px-3.5 py-2 rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-300/60 dark:border-slate-700 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1">Category * <span id="ai-cat-hint" class="text-[10px] text-brand-500 font-normal"></span></label>
+            <select id="rep-category" class="w-full px-3.5 py-2 rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-300/60 dark:border-slate-700 text-sm">
+              ${state.categories.map(c => `<option value="${c}">${c}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold mb-1">Date ${isLost ? 'Lost' : 'Found'} *</label>
+            <input required id="rep-date" type="date" value="2026-11-16" class="w-full px-3.5 py-2 rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-300/60 dark:border-slate-700 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1">Location ${isLost ? 'Lost' : 'Found'} *</label>
+            <select id="rep-location" class="w-full px-3.5 py-2 rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-300/60 dark:border-slate-700 text-sm">
+              ${state.locations.map(l => `<option value="${l}">${l}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        ${!isLost ? `
+          <div>
+            <label class="block text-xs font-semibold mb-1">Current Storage Location *</label>
+            <input required id="rep-storage" type="text" placeholder="e.g. Security Desk - Block A" class="w-full px-3.5 py-2 rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-300/60 dark:border-slate-700 text-sm" />
+          </div>
+        ` : `
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold mb-1">Optional Reward</label>
+              <input id="rep-reward" type="text" placeholder="e.g. ₹500" class="w-full px-3.5 py-2 rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-300/60 dark:border-slate-700 text-sm" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1">Serial / ID Number (Optional)</label>
+              <input id="rep-serial" type="text" placeholder="Auto-detected via OCR if uploaded" class="w-full px-3.5 py-2 rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-300/60 dark:border-slate-700 text-sm" />
+            </div>
+          </div>
+        `}
+        <div>
+          <label class="block text-xs font-semibold mb-1">Detailed Description *</label>
+          <textarea required id="rep-desc" rows="3" placeholder="Color, brand, stickers, unique marks..." class="w-full px-3.5 py-2 rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-300/60 dark:border-slate-700 text-sm"></textarea>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold mb-1">Contact Information *</label>
+            <input required id="rep-contact" type="text" value="${state.currentUser.email}" class="w-full px-3.5 py-2 rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-300/60 dark:border-slate-700 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1">Upload Item Photo(s) * <span class="text-rose-500">Required</span></label>
+            <input id="rep-images" required type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif" onchange="previewReportImages(this); simulateOcr(this)" class="w-full text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-brand-600 file:text-white file:font-semibold" />
+            <p class="mt-1 text-[10px] text-slate-500">Upload at least one clear photo of the lost/found item. JPG, PNG, WEBP or GIF; maximum 5 MB per image.</p>
+            <div id="rep-image-preview" class="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2"></div>
+          </div>
+        </div>
+        <button type="submit" class="w-full py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm shadow-md transition">
+          Submit ${isLost ? 'Lost' : 'Found'} Item Report
+        </button>
+      </form>
+    </div>
+  `;
+}
+
+function predictCategory(val) {
+  const v = val.toLowerCase();
+  const sel = document.getElementById('rep-category');
+  const hint = document.getElementById('ai-cat-hint');
+  if (!sel || !hint) return;
+  let pred = null;
+  if (/laptop|macbook|phone|headphone|charger|ipad|earbud/.test(v)) pred = 'Electronics';
+  else if (/wallet|id|card|passport|license/.test(v)) pred = 'ID Cards & Wallets';
+  else if (/key|keychain|fob/.test(v)) pred = 'Keys & Access';
+  else if (/bag|backpack|pouch/.test(v)) pred = 'Bags & Backpacks';
+  else if (/book|notebook|manual/.test(v)) pred = 'Books & Notes';
+  if (pred) {
+    sel.value = pred;
+    hint.textContent = `(AI predicted: ${pred})`;
+  } else {
+    hint.textContent = '';
+  }
+}
+
+function simulateOcr(input) {
+  if (input.files && input.files.length > 0) {
+    showToast(`Uploaded ${input.files.length} image(s). AI OCR scanned for serial numbers.`, 'info');
+  }
+}
+
+function previewReportImages(input) {
+  const preview = document.getElementById('rep-image-preview');
+  preview.innerHTML = '';
+  const files = Array.from(input.files || []);
+  if (!files.length) return;
+
+  const invalid = files.find(file => !file.type.startsWith('image/') || file.size > 5 * 1024 * 1024);
+  if (invalid) {
+    showToast(invalid.size > 5 * 1024 * 1024 ? 'Each image must be 5 MB or smaller.' : 'Please select image files only.', 'warning');
+    input.value = '';
+    return;
+  }
+  files.forEach(file => {
+    const url = URL.createObjectURL(file);
+    const img = document.createElement('img');
+    img.src = url;
+    img.alt = 'Selected item photo';
+    img.className = 'w-full h-28 object-cover rounded-xl border border-slate-200 dark:border-slate-700';
+    preview.appendChild(img);
+  });
+}
+
+function readImageAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Could not read one of the selected images.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function submitItemReport(e, type) {
+  e.preventDefault();
+  const imageInput = document.getElementById('rep-images');
+  const files = Array.from(imageInput.files || []);
+  if (!files.length) { showToast('Please upload at least one photo of the item.', 'warning'); imageInput.focus(); return; }
+  if (files.some(f => !f.type.startsWith('image/') || f.size > 5 * 1024 * 1024)) {
+    showToast('Images must be valid image files no larger than 5 MB each.', 'warning'); return;
+  }
+  const form = e.currentTarget;
+  const fd = new FormData();
+  fd.append('type', type);
+  fd.append('title', document.getElementById('rep-title').value.trim());
+  fd.append('category', document.getElementById('rep-category').value);
+  fd.append('description', document.getElementById('rep-desc').value.trim());
+  fd.append('date', document.getElementById('rep-date').value);
+  fd.append('location', document.getElementById('rep-location').value);
+  fd.append('storageLocation', document.getElementById('rep-storage')?.value || '');
+  fd.append('serial', document.getElementById('rep-serial')?.value || '');
+  fd.append('reward', document.getElementById('rep-reward')?.value || '');
+  fd.append('contact', document.getElementById('rep-contact').value.trim());
+  files.forEach(file => fd.append('images', file));
+  try {
+    const response = await fetch('/api/reports', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + localStorage.getItem('campusfind_token') },
+      body: fd
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || 'Could not submit report.');
+    await loadCampusFindMongoItems();
+    showToast('Report saved to MongoDB with ' + files.length + ' photo(s).', 'success');
+    setTab('search');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+function renderUserClaims() {
+  const myClaims = state.claims.filter(c => c.claimantId === state.currentUser.id);
+  return `
+    <div class="space-y-4">
+      <h2 class="text-lg font-bold">My Claim Verification History</h2>
+      <div class="glass-card rounded-2xl overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead class="border-b border-slate-200/70 dark:border-slate-700/60 text-xs uppercase text-slate-500">
+            <tr>
+              <th class="p-4">Claim ID</th>
+              <th class="p-4">Item</th>
+              <th class="p-4">Submitted</th>
+              <th class="p-4">Proof Files</th>
+              <th class="p-4">Status</th>
+              <th class="p-4">Admin Notes</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-200/50 dark:divide-slate-800/70">
+            ${myClaims.map(c => `
+              <tr>
+                <td class="p-4 font-semibold">${c.id}</td>
+                <td class="p-4">${c.itemTitle}</td>
+                <td class="p-4 text-xs text-slate-500">${c.date}</td>
+                <td class="p-4 text-xs">${c.proofReceipt || '—'}, ${c.proofIdCard}</td>
+                <td class="p-4">${statusBadge(c.status)}</td>
+                <td class="p-4 text-xs text-slate-500">${c.notes || 'Pending review'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function renderUserProfile() {
+  const u = state.currentUser;
+  const myItems = state.items.filter(i => i.reporterId === u.id);
+  return `
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="glass-card rounded-2xl p-6 space-y-4">
+        <div class="flex items-center gap-4">
+          <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-500 to-cyan-500 text-white font-extrabold text-xl flex items-center justify-center">VP</div>
+          <div>
+            <h2 class="text-lg font-bold">${u.name}</h2>
+            <p class="text-xs text-slate-500">${u.role} • ${u.department}</p>
+            <span class="inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-500">Email Verified</span>
+          </div>
+        </div>
+        <form onsubmit="saveProfile(event)" class="space-y-3 pt-2">
+          <div>
+            <label class="block text-xs font-semibold mb-1">Full Name</label>
+            <input id="prof-name" type="text" value="${u.name}" class="w-full px-3 py-2 rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-300/60 dark:border-slate-700 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1">Email</label>
+            <input id="prof-email" type="email" value="${u.email}" class="w-full px-3 py-2 rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-300/60 dark:border-slate-700 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1">Phone</label>
+            <input id="prof-phone" type="text" value="${u.phone}" class="w-full px-3 py-2 rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-300/60 dark:border-slate-700 text-sm" />
+          </div>
+          <button type="submit" class="w-full py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold">Save Profile</button>
+        </form>
+      </div>
+      <div class="lg:col-span-2 glass-card rounded-2xl p-6 space-y-4">
+        <h3 class="text-lg font-bold">My Reported Items (${myItems.length})</h3>
+        <div class="space-y-3">
+          ${myItems.map(i => `
+            <div class="p-4 rounded-xl bg-slate-100/80 dark:bg-slate-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div class="font-semibold text-sm">${i.title} <span class="text-xs text-slate-500">(${i.type.toUpperCase()})</span></div>
+                <div class="text-xs text-slate-500 mt-0.5">${i.location} • ${i.date}</div>
+              </div>
+              <div class="flex items-center gap-2">
+                ${statusBadge(i.status)}
+                <button onclick="deleteItem('${i.id}')" class="px-2.5 py-1 rounded-lg bg-rose-500/15 text-rose-500 text-xs font-semibold hover:bg-rose-500/25">Delete</button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function saveProfile(e) {
+  e.preventDefault();
+  state.currentUser.name = document.getElementById('prof-name').value.trim();
+  state.currentUser.email = document.getElementById('prof-email').value.trim();
+  state.currentUser.phone = document.getElementById('prof-phone').value.trim();
+  document.getElementById('header-user-name').textContent = state.currentUser.name;
+  showToast('Profile updated successfully.', 'success');
+  renderApp();
+}
+
+function deleteItem(id) {
+  state.items = state.items.filter(i => i.id !== id);
+  showToast(`Report ${id} deleted.`, 'info');
+  renderApp();
+}
+
+// ==================== ITEM DETAIL & CLAIM MODALS ====================
+function openItemDetail(id) {
+  const item = state.items.find(i => i.id === id);
+  if (!item) return;
+  document.getElementById('item-modal-body').innerHTML = `
+    <div class="flex items-center justify-between mb-4">
+      <span class="text-xs font-bold uppercase tracking-wider text-brand-500">${item.id} • ${item.type} Item</span>
+      <button onclick="closeModal('item-modal')" class="p-1.5 rounded-lg hover:bg-slate-200/50 dark:hover:bg-slate-800">✕</button>
+    </div>
+    <div class="h-56 rounded-2xl bg-gradient-to-br ${item.color} overflow-hidden flex items-center justify-center mb-4">
+      ${item.images && item.images.length
+        ? `<img src="${item.images[0]}" alt="${item.title}" class="w-full h-full object-cover" />`
+        : getItemSvg(item.icon)}
+    </div>
+    <h2 class="text-xl font-bold">${item.title}</h2>
+    <div class="flex items-center gap-2 mt-2 flex-wrap">
+      ${statusBadge(item.status)}
+      <span class="text-xs text-slate-500">${item.category}</span>
+      ${item.serial ? `<span class="text-xs px-2 py-0.5 rounded bg-slate-200/70 dark:bg-slate-800 font-mono">SN: ${item.serial}</span>` : ''}
+    </div>
+    <p class="text-sm text-slate-600 dark:text-slate-300 mt-3">${item.description}</p>
+    <div class="grid grid-cols-2 gap-3 mt-4 text-xs bg-slate-100/80 dark:bg-slate-800/60 p-4 rounded-xl">
+      <div><span class="text-slate-500">Location:</span> <strong>${item.location}</strong></div>
+      <div><span class="text-slate-500">Date:</span> <strong>${item.date}</strong></div>
+      <div><span class="text-slate-500">Reported By:</span> <strong>${item.reporterName}</strong></div>
+      <div><span class="text-slate-500">Contact:</span> <strong>${item.contact}</strong></div>
+      ${item.storageLocation ? `<div class="col-span-2"><span class="text-slate-500">Current Storage:</span> <strong>${item.storageLocation}</strong></div>` : ''}
+      ${item.reward ? `<div class="col-span-2"><span class="text-slate-500">Reward Offered:</span> <strong class="text-emerald-500">${item.reward}</strong></div>` : ''}
+    </div>
+    <div class="mt-5 flex justify-end gap-2">
+      <button onclick="closeModal('item-modal')" class="px-4 py-2 rounded-xl bg-slate-200/70 dark:bg-slate-800 text-sm font-semibold">Close</button>
+      ${item.type === 'found' && item.status === 'Available' ? `
+        <button onclick="closeModal('item-modal'); openClaimModal('${item.id}')" class="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold">Request Claim</button>
+      ` : ''}
+    </div>
+  `;
+  openModal('item-modal');
+}
+
+function openClaimModal(itemId) {
+  const item = state.items.find(i => i.id === itemId);
+  if (!item) return;
+  document.getElementById('claim-modal-body').innerHTML = `
+    <form onsubmit="submitClaim(event, '${item.id}')" class="space-y-4">
+      <div class="p-3 rounded-xl bg-brand-500/10 border border-brand-500/20 text-xs">
+        Claiming: <strong>${item.title}</strong> (${item.id})
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1">Ownership Verification Question *</label>
+        <p class="text-[11px] text-slate-500 mb-1">Describe unique identifying details (scratches, stickers, lockscreen, contents):</p>
+        <textarea required id="clm-answer" rows="3" class="w-full px-3 py-2 rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-300/60 dark:border-slate-700 text-sm"></textarea>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1">Upload Campus Identity Card *</label>
+        <input required id="clm-id-file" type="file" accept="image/*,.pdf" class="w-full text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-brand-600 file:text-white" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1">Upload Purchase Receipt / Proof (Optional)</label>
+        <input id="clm-receipt-file" type="file" accept="image/*,.pdf" class="w-full text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-slate-600 file:text-white" />
+      </div>
+      <button type="submit" class="w-full py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm">Submit Claim for Admin Review</button>
+    </form>
+  `;
+  openModal('claim-modal');
+}
+
+function submitClaim(e, itemId) {
+  e.preventDefault();
+  const item = state.items.find(i => i.id === itemId);
+  const idFile = document.getElementById('clm-id-file').files[0]?.name || 'Campus_ID.pdf';
+  const recFile = document.getElementById('clm-receipt-file').files[0]?.name || 'None';
+  const newClaim = {
+    id: 'CLM-' + Math.floor(600 + Math.random() * 300),
+    itemId,
+    itemTitle: item.title,
+    claimantId: state.currentUser.id,
+    claimantName: state.currentUser.name,
+    date: '2026-11-16',
+    status: 'Pending',
+    ownershipAnswer: document.getElementById('clm-answer').value.trim(),
+    proofReceipt: recFile,
+    proofIdCard: idFile,
+    fraudScore: Math.floor(5 + Math.random() * 12),
+    notes: ''
+  };
+  state.claims.unshift(newClaim);
+  item.status = 'Claim Pending';
+  state.notifications.unshift({
+    id: 'N-' + Date.now(),
+    type: 'claim',
+    title: `Claim ${newClaim.id} Submitted`,
+    message: `Your claim for ${item.title} is queued for admin verification.`,
+    time: 'Just now',
+    unread: true
+  });
+  closeModal('claim-modal');
+  showToast(`Claim ${newClaim.id} submitted for verification!`, 'success');
+  renderApp();
+}
+
+// ==================== ADMIN PORTAL VIEWS ====================
+function renderAdminDashboard() {
+  const approved = state.claims.filter(c => c.status === 'Approved').length;
+  const pending = state.claims.filter(c => c.status === 'Pending').length;
+  const rejected = state.claims.filter(c => c.status === 'Rejected').length;
+  return `
+    <div class="space-y-6">
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        ${kpiCard('Total Registered Users', state.users.length, 'Students, Faculty & Staff', 'text-brand-500')}
+        ${kpiCard('Total Lost / Found', state.items.length, `${state.items.filter(i=>i.type==='lost').length} Lost • ${state.items.filter(i=>i.type==='found').length} Found`, 'text-cyan-500')}
+        ${kpiCard('Pending Claims', pending, 'Requires evidence review', 'text-amber-500')}
+        ${kpiCard('Approved / Rejected', `${approved} / ${rejected}`, 'Claim resolution rate', 'text-emerald-500')}
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 glass-card rounded-2xl p-5">
+          <h3 class="font-bold text-base mb-3">Monthly Lost vs. Found &amp; Returned Trends</h3>
+          <div class="relative h-72"><canvas id="adminTrendChart"></canvas></div>
+        </div>
+        <div class="glass-card rounded-2xl p-5">
+          <h3 class="font-bold text-base mb-3">Items by Category</h3>
+          <div class="relative h-72"><canvas id="adminCatChart"></canvas></div>
+        </div>
+      </div>
+
+      <div class="glass-card rounded-2xl p-5">
+        <h3 class="font-bold text-base mb-3">Recent Security &amp; Audit Logs</h3>
+        <div class="space-y-2 text-xs">
+          ${state.activityLogs.slice(0, 6).map(l => `
+            <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/60">
+              <span><strong class="text-brand-500">${l.actor}</strong> — ${l.action}</span>
+              <span class="text-slate-500 shrink-0 ml-2">${l.time}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderAdminCharts() {
+  const isDark = document.documentElement.classList.contains('dark');
+  const textColor = isDark ? '#cbd5e1' : '#334155';
+  const gridColor = isDark ? 'rgba(148,163,184,0.12)' : 'rgba(148,163,184,0.25)';
+
+  if (state.charts.trend) state.charts.trend.destroy();
+  if (state.charts.cat) state.charts.cat.destroy();
+
+  const ctx1 = document.getElementById('adminTrendChart');
+  const ctx2 = document.getElementById('adminCatChart');
+  if (!ctx1 || !ctx2) return;
+
+  state.charts.trend = new Chart(ctx1, {
+    type: 'bar',
+    data: {
+      labels: ['Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov'],
+      datasets: [
+        { label: 'Lost', data: [14, 19, 24, 21, 28, 18], backgroundColor: '#f43f5e', borderRadius: 6 },
+        { label: 'Found', data: [12, 16, 20, 19, 25, 22], backgroundColor: '#10b981', borderRadius: 6 },
+        { label: 'Returned', data: [9, 13, 17, 15, 21, 16], backgroundColor: '#6366f1', borderRadius: 6 }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: textColor } } },
+      scales: {
+        x: { ticks: { color: textColor }, grid: { display: false } },
+        y: { ticks: { color: textColor }, grid: { color: gridColor } }
+      }
+    }
+  });
+
+  state.charts.cat = new Chart(ctx2, {
+    type: 'doughnut',
+    data: {
+      labels: ['Electronics', 'IDs & Wallets', 'Bags', 'Keys', 'Other'],
+      datasets: [{
+        data: [42, 24, 16, 10, 8],
+        backgroundColor: ['#6366f1', '#10b981', '#f59e0b', '#06b6d4', '#ec4899'],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { color: textColor, boxWidth: 12 } } }
+    }
+  });
+}
+
+function renderAdminClaims() {
+  return `
+    <div class="space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-bold">Claim Verification Queue</h2>
+        <span class="text-xs text-slate-500">AI Fraud Detection Enabled</span>
+      </div>
+      <div class="glass-card rounded-2xl overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead class="border-b border-slate-200/70 dark:border-slate-700/60 text-xs uppercase text-slate-500">
+            <tr>
+              <th class="p-4">Claim</th>
+              <th class="p-4">Item</th>
+              <th class="p-4">Claimant</th>
+              <th class="p-4">AI Risk Score</th>
+              <th class="p-4">Status</th>
+              <th class="p-4">Action</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-200/50 dark:divide-slate-800/70">
+            ${state.claims.map(c => `
+              <tr>
+                <td class="p-4 font-semibold">${c.id}</td>
+                <td class="p-4">${c.itemTitle}</td>
+                <td class="p-4 text-xs">${c.claimantName}</td>
+                <td class="p-4 text-xs"><span class="px-2 py-0.5 rounded-full ${c.fraudScore < 20 ? 'bg-emerald-500/15 text-emerald-500' : 'bg-rose-500/15 text-rose-500'} font-semibold">${c.fraudScore}% Risk (Low)</span></td>
+                <td class="p-4">${statusBadge(c.status)}</td>
+                <td class="p-4">
+                  <button onclick="openReviewClaim('${c.id}')" class="px-3 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold">Review Evidence</button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function openReviewClaim(claimId) {
+  const c = state.claims.find(x => x.id === claimId);
+  const item = state.items.find(i => i.id === c.itemId);
+  document.getElementById('review-claim-body').innerHTML = `
+    <div class="space-y-4 text-sm">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="p-3.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/60">
+          <div class="text-xs font-bold text-slate-500 uppercase">Found Item Record</div>
+          <div class="font-bold mt-1">${item?.title || c.itemTitle}</div>
+          <div class="text-xs text-slate-500 mt-1">Serial: ${item?.serial || 'N/A'} • Storage: ${item?.storageLocation || 'Security Desk'}</div>
+        </div>
+        <div class="p-3.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/60">
+          <div class="text-xs font-bold text-slate-500 uppercase">Claimant Evidence</div>
+          <div class="font-bold mt-1">${c.claimantName}</div>
+          <div class="text-xs text-slate-500 mt-1">ID: ${c.proofIdCard} • Receipt: ${c.proofReceipt}</div>
+        </div>
+      </div>
+      <div class="p-3.5 rounded-xl bg-brand-500/10 border border-brand-500/20">
+        <div class="text-xs font-bold text-brand-500 uppercase">Claimant's Ownership Answer</div>
+        <p class="mt-1 text-xs sm:text-sm">${c.ownershipAnswer}</p>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1">Admin Verification Notes</label>
+        <textarea id="rev-notes" rows="2" class="w-full px-3 py-2 rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-300/60 dark:border-slate-700 text-sm" placeholder="Add verification or handover notes...">${c.notes}</textarea>
+      </div>
+      <div class="flex flex-wrap gap-2 justify-end">
+        <button onclick="decideClaim('${c.id}', 'Rejected')" class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold">Reject Claim</button>
+        <button onclick="decideClaim('${c.id}', 'Approved')" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold">Approve &amp; Mark Returned</button>
+      </div>
+    </div>
+  `;
+  openModal('review-claim-modal');
+}
+
+function decideClaim(claimId, decision) {
+  const c = state.claims.find(x => x.id === claimId);
+  const item = state.items.find(i => i.id === c.itemId);
+  c.status = decision;
+  c.notes = document.getElementById('rev-notes').value.trim() || (decision === 'Approved' ? 'Ownership verified. Item handed over.' : 'Insufficient proof.');
+  if (item) {
+    item.status = decision === 'Approved' ? 'Returned' : 'Available';
+  }
+  state.notifications.unshift({
+    id: 'N-' + Date.now(),
+    type: 'claim',
+    title: `Claim ${c.id} ${decision}`,
+    message: `Admin ${decision.toLowerCase()} claim for ${c.itemTitle}.`,
+    time: 'Just now',
+    unread: true
+  });
+  state.activityLogs.unshift({ time: 'Just now', actor: 'Admin', action: `${decision} claim ${c.id} (${c.itemTitle})` });
+  closeModal('review-claim-modal');
+  showToast(`Claim ${c.id} marked as ${decision}.`, decision === 'Approved' ? 'success' : 'warning');
+  renderApp();
+}
+
+function renderAdminItems() {
+  return `
+    <div class="space-y-4">
+      <h2 class="text-lg font-bold">Lost &amp; Found Inventory Management</h2>
+      <div class="glass-card rounded-2xl overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead class="border-b border-slate-200/70 dark:border-slate-700/60 text-xs uppercase text-slate-500">
+            <tr>
+              <th class="p-4">ID</th>
+              <th class="p-4">Type</th>
+              <th class="p-4">Title</th>
+              <th class="p-4">Location</th>
+              <th class="p-4">Status</th>
+              <th class="p-4">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-200/50 dark:divide-slate-800/70">
+            ${state.items.map(i => `
+              <tr>
+                <td class="p-4 font-semibold">${i.id}</td>
+                <td class="p-4 uppercase text-xs font-bold">${i.type}</td>
+                <td class="p-4">${i.title}</td>
+                <td class="p-4 text-xs text-slate-500">${i.location}</td>
+                <td class="p-4">${statusBadge(i.status)}</td>
+                <td class="p-4 flex gap-2">
+                  <button onclick="toggleArchive('${i.id}')" class="px-2.5 py-1 rounded-lg bg-slate-200/70 dark:bg-slate-800 text-xs font-semibold">${i.archived ? 'Unarchive' : 'Archive'}</button>
+                  <button onclick="deleteItem('${i.id}')" class="px-2.5 py-1 rounded-lg bg-rose-500/15 text-rose-500 text-xs font-semibold">Delete</button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function toggleArchive(id) {
+  const i = state.items.find(x => x.id === id);
+  if (i) {
+    i.archived = !i.archived;
+    showToast(`Item ${id} ${i.archived ? 'archived' : 'restored'}.`, 'info');
+    renderApp();
+  }
+}
+
+function renderAdminUsers() {
+  return `
+    <div class="space-y-4">
+      <h2 class="text-lg font-bold">Campus User Management</h2>
+      <div class="glass-card rounded-2xl overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead class="border-b border-slate-200/70 dark:border-slate-700/60 text-xs uppercase text-slate-500">
+            <tr>
+              <th class="p-4">Name</th>
+              <th class="p-4">Email</th>
+              <th class="p-4">Role / Dept</th>
+              <th class="p-4">Status</th>
+              <th class="p-4">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-200/50 dark:divide-slate-800/70">
+            ${state.users.map(u => `
+              <tr>
+                <td class="p-4 font-semibold">${u.name}</td>
+                <td class="p-4 text-xs text-slate-500">${u.email}</td>
+                <td class="p-4 text-xs">${u.role} (${u.department})</td>
+                <td class="p-4"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold ${u.status==='Active'?'bg-emerald-500/15 text-emerald-500':'bg-rose-500/15 text-rose-500'}">${u.status}</span></td>
+                <td class="p-4">
+                  <button onclick="toggleUserSuspend('${u.id}')" class="px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-500 text-xs font-semibold">${u.status==='Active'?'Suspend':'Activate'}</button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function toggleUserSuspend(id) {
+  const u = state.users.find(x => x.id === id);
+  if (u) {
+    u.status = u.status === 'Active' ? 'Suspended' : 'Active';
+    showToast(`${u.name} is now ${u.status}.`, 'info');
+    renderApp();
+  }
+}
+
+function renderAdminReports() {
+  return `
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="glass-card rounded-2xl p-6 space-y-4">
+        <h3 class="text-lg font-bold">Export Campus Reports</h3>
+        <p class="text-xs text-slate-500">Download real-time Lost, Found, and Claim Verification datasets in CSV/Excel or JSON backup format.</p>
+        <div class="flex flex-wrap gap-3">
+          <button onclick="exportCSV('items')" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold">Export Items CSV (Excel)</button>
+          <button onclick="exportCSV('claims')" class="px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold">Export Claims CSV</button>
+          <button onclick="window.print()" class="px-4 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold">Print / Save PDF</button>
+        </div>
+      </div>
+      <div class="glass-card rounded-2xl p-6 space-y-4">
+        <h3 class="text-lg font-bold">Broadcast Campus Announcement</h3>
+        <form onsubmit="sendAnnouncement(event)" class="space-y-3">
+          <input required id="ann-title" type="text" placeholder="Announcement Title" class="w-full px-3 py-2 rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-300/60 dark:border-slate-700 text-sm" />
+          <textarea required id="ann-msg" rows="2" placeholder="Message to all campus users..." class="w-full px-3 py-2 rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-300/60 dark:border-slate-700 text-sm"></textarea>
+          <button type="submit" class="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold">Send Push &amp; Email Notice</button>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
+function exportCSV(kind) {
+  const rows = kind === 'items'
+    ? [['ID','Type','Title','Category','Date','Location','Status'], ...state.items.map(i => [i.id, i.type, i.title, i.category, i.date, i.location, i.status])]
+    : [['ClaimID','Item','Claimant','Date','Status','FraudScore'], ...state.claims.map(c => [c.id, c.itemTitle, c.claimantName, c.date, c.status, c.fraudScore])];
+  const csv = rows.map(r => r.map(x => `"${String(x).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `campusfind_${kind}_report.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast(`Exported ${kind} CSV report.`, 'success');
+}
+
+function sendAnnouncement(e) {
+  e.preventDefault();
+  state.notifications.unshift({
+    id: 'N-' + Date.now(),
+    type: 'announcement',
+    title: document.getElementById('ann-title').value.trim(),
+    message: document.getElementById('ann-msg').value.trim(),
+    time: 'Just now',
+    unread: true
+  });
+  e.target.reset();
+  updateNotifBadge();
+  showToast('Campus announcement broadcasted to all users.', 'success');
+}
+
+function renderAdminSettings() {
+  return `
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="glass-card rounded-2xl p-6 space-y-3">
+        <h3 class="text-lg font-bold">Manage Categories</h3>
+        <div class="flex flex-wrap gap-2">
+          ${state.categories.map(c => `<span class="px-3 py-1 rounded-full bg-slate-200/70 dark:bg-slate-800 text-xs font-semibold">${c}</span>`).join('')}
+        </div>
+        <form onsubmit="addCategory(event)" class="flex gap-2 pt-2">
+          <input required id="new-cat" type="text" placeholder="New category name" class="flex-1 px-3 py-2 rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-300/60 dark:border-slate-700 text-sm" />
+          <button type="submit" class="px-4 py-2 rounded-xl bg-brand-600 text-white text-xs font-semibold">Add</button>
+        </form>
+      </div>
+      <div class="glass-card rounded-2xl p-6 space-y-3">
+        <h3 class="text-lg font-bold">Manage Campus Locations</h3>
+        <div class="flex flex-wrap gap-2">
+          ${state.locations.map(l => `<span class="px-3 py-1 rounded-full bg-slate-200/70 dark:bg-slate-800 text-xs font-semibold">${l}</span>`).join('')}
+        </div>
+        <form onsubmit="addLocation(event)" class="flex gap-2 pt-2">
+          <input required id="new-loc" type="text" placeholder="New campus location" class="flex-1 px-3 py-2 rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-300/60 dark:border-slate-700 text-sm" />
+          <button type="submit" class="px-4 py-2 rounded-xl bg-brand-600 text-white text-xs font-semibold">Add</button>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
+function addCategory(e) {
+  e.preventDefault();
+  const val = document.getElementById('new-cat').value.trim();
+  if (val && !state.categories.includes(val)) {
+    state.categories.push(val);
+    showToast(`Added category "${val}".`, 'success');
+    renderApp();
+  }
+}
+
+function addLocation(e) {
+  e.preventDefault();
+  const val = document.getElementById('new-loc').value.trim();
+  if (val && !state.locations.includes(val)) {
+    state.locations.push(val);
+    showToast(`Added location "${val}".`, 'success');
+    renderApp();
+  }
+}
+
+// ==================== NOTIFICATIONS, AUTH & CHATBOT ====================
+function updateNotifBadge() {
+  const unread = state.notifications.filter(n => n.unread).length;
+  const badge = document.getElementById('notif-badge');
+  badge.textContent = unread;
+  badge.classList.toggle('hidden', unread === 0);
+}
+
+function renderNotifications() {
+  document.getElementById('notifications-list').innerHTML = state.notifications.map(n => `
+    <div class="p-3.5 rounded-xl ${n.unread ? 'bg-brand-500/10 border border-brand-500/30' : 'bg-slate-100/70 dark:bg-slate-800/60'}">
+      <div class="flex items-center justify-between">
+        <span class="font-bold text-xs text-brand-500">${n.title}</span>
+        <span class="text-[10px] text-slate-500">${n.time}</span>
+      </div>
+      <p class="text-xs mt-1">${n.message}</p>
+    </div>
+  `).join('');
+}
+
+function markAllRead() {
+  state.notifications.forEach(n => n.unread = false);
+  updateNotifBadge();
+  renderNotifications();
+}
+
+function setAuthTab(tab) {
+  state.authTab = tab;
+  ['login', 'register', 'reset'].forEach(t => {
+    const btn = document.getElementById('auth-tab-' + t);
+    btn.className = t === tab
+      ? 'flex-1 py-1.5 rounded-lg text-xs font-semibold bg-white dark:bg-brand-600 shadow-sm'
+      : 'flex-1 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-300';
+  });
+  renderAuthBody();
+}
+
+function renderAuthBody() {
+  const body = document.getElementById('auth-body');
+  if (state.authTab === 'login') {
+    body.innerHTML = `
+      <form onsubmit="handleAuth(event, 'Logged in with JWT session')" class="space-y-3">
+        <input required type="email" value="${state.currentUser.email}" class="w-full px-3 py-2 rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-300/60 dark:border-slate-700 text-sm" placeholder="Campus Email" />
+        <input required type="password" value="••••••••" class="w-full px-3 py-2 rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-300/60 dark:border-slate-700 text-sm" placeholder="Password" />
+        <button type="submit" class="w-full py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold">Sign In</button>
+      </form>
+    `;
+  } else if (state.authTab === 'register') {
+    body.innerHTML = `
+      <form onsubmit="handleAuth(event, 'Account registered! Verification email sent.')" class="space-y-3">
+        <input required type="text" class="w-full px-3 py-2 rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-300/60 dark:border-slate-700 text-sm" placeholder="Full Name" />
+        <input required type="email" class="w-full px-3 py-2 rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-300/60 dark:border-slate-700 text-sm" placeholder="Campus Email (.edu)" />
+        <input required type="password" class="w-full px-3 py-2 rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-300/60 dark:border-slate-700 text-sm" placeholder="Create Password" />
+        <button type="submit" class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold">Register Account</button>
+      </form>
+    `;
+  } else {
+    body.innerHTML = `
+      <form onsubmit="handleAuth(event, 'Password reset link sent to your campus email.')" class="space-y-3">
+        <input required type="email" class="w-full px-3 py-2 rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-300/60 dark:border-slate-700 text-sm" placeholder="Enter registered campus email" />
+        <button type="submit" class="w-full py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold">Send Reset Link</button>
+      </form>
+    `;
+  }
+}
+
+function handleAuth(e, msg) {
+  e.preventDefault();
+  closeModal('auth-modal');
+  showToast(msg, 'success');
+}
+
+function toggleChatbot() {
+  document.getElementById('chatbot-drawer').classList.toggle('hidden');
+}
+
+function sendChatMessage(e) {
+  e.preventDefault();
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+  const box = document.getElementById('chat-messages');
+  box.innerHTML += `<div class="p-3 rounded-xl bg-brand-600 text-white ml-6">${text}</div>`;
+  input.value = '';
+  const q = text.toLowerCase();
+  let reply = 'You can browse all campus items in the Search & Gallery tab, or submit a Lost/Found report with automatic AI matching.';
+  if (q.includes('macbook') || q.includes('laptop')) {
+    reply = 'There is a found Apple MacBook Air M2 (ITM-201) at Central Library! Open Search & Gallery or click "Claim This Item" on your dashboard.';
+  } else if (q.includes('claim') || q.includes('verify')) {
+    reply = 'To verify ownership, click "Request Claim" on a found item, answer the ownership question, and upload your Campus ID (plus an optional receipt).';
+  }
+  setTimeout(() => {
+    box.innerHTML += `<div class="p-3 rounded-xl bg-slate-200/70 dark:bg-slate-800/80 text-slate-800 dark:text-slate-200 mr-6">${reply}</div>`;
+    box.scrollTop = box.scrollHeight;
+  }, 300);
+}
+
+
+// ==================== LOGIN-FIRST ACCESS GATE ====================
+let campusFindLoginMode = 'login';
+
+function setLoginMode(mode) {
+  campusFindLoginMode = mode;
+  const loginMode = mode === 'login';
+  document.getElementById('login-mode-btn').className = loginMode
+    ? 'flex-1 rounded-lg py-2 text-sm font-semibold bg-indigo-600 text-white'
+    : 'flex-1 rounded-lg py-2 text-sm font-semibold text-slate-300';
+  document.getElementById('register-mode-btn').className = !loginMode
+    ? 'flex-1 rounded-lg py-2 text-sm font-semibold bg-indigo-600 text-white'
+    : 'flex-1 rounded-lg py-2 text-sm font-semibold text-slate-300';
+  document.getElementById('login-name-wrap').classList.toggle('hidden', loginMode);
+  document.getElementById('login-heading').textContent = loginMode ? 'Welcome back' : 'Create your account';
+  document.getElementById('login-subheading').textContent = loginMode
+    ? 'Sign in to continue to your dashboard.'
+    : 'Register with your campus details to get started.';
+  document.getElementById('login-submit').textContent = loginMode ? 'Login to Dashboard' : 'Create Account';
+  document.getElementById('login-password').autocomplete = loginMode ? 'current-password' : 'new-password';
+  document.getElementById('login-error').textContent = '';
+}
+
+function campusFindUsers() {
+  try { return JSON.parse(localStorage.getItem('campusfind_demo_users') || '[]'); }
+  catch { return []; }
+}
+
+function enterCampusFind(user) {
+  state.currentUser = {
+    ...state.currentUser,
+    id: user.id || ('USR-' + Date.now()),
+    name: user.name,
+    email: user.email,
+    role: 'Student',
+    verified: true,
+    status: 'Active'
+  };
+  sessionStorage.setItem('campusfind_logged_in', 'yes');
+  sessionStorage.setItem('campusfind_active_user', JSON.stringify(user));
+  document.getElementById('header-user-name').textContent = user.name;
+  document.getElementById('header-avatar').textContent = user.name.split(/\s+/).map(x => x[0]).join('').slice(0,2).toUpperCase();
+  document.getElementById('login-screen').classList.add('hidden');
+  document.body.classList.add('campusfind-authenticated');
+  renderApp();
+  showToast('Welcome to CampusFind, ' + user.name + '!', 'success');
+}
+
+document.getElementById('login-mode-btn').addEventListener('click', () => setLoginMode('login'));
+document.getElementById('register-mode-btn').addEventListener('click', () => setLoginMode('register'));
+
+document.getElementById('login-first-form').addEventListener('submit', async function(event) {
+  event.preventDefault();
+  const email = document.getElementById('login-email').value.trim().toLowerCase();
+  const password = document.getElementById('login-password').value;
+  const error = document.getElementById('login-error');
+  const submit = document.getElementById('login-submit');
+  submit.disabled = true; submit.textContent = 'Please wait...'; error.textContent = '';
+  try {
+    const endpoint = campusFindLoginMode === 'register' ? '/api/auth/register' : '/api/auth/login';
+    const payload = { email, password };
+    if (campusFindLoginMode === 'register') payload.name = document.getElementById('login-name').value.trim();
+    const response = await fetch(endpoint, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || 'Unable to authenticate.');
+    localStorage.setItem('campusfind_token', data.token);
+    enterCampusFind({ id: data.user.id, name: data.user.name, email: data.user.email });
+    await loadCampusFindMongoItems();
+  } catch (err) { error.textContent = err.message; }
+  finally { submit.disabled = false; submit.textContent = campusFindLoginMode === 'login' ? 'Login to Dashboard' : 'Create Account'; }
+});
+
+// Always display login first when the page is opened; do not silently enter the dashboard.
+document.body.classList.remove('campusfind-authenticated');
+document.getElementById('login-screen').classList.remove('hidden');
+setLoginMode('login');
+
+// Add a logout action in the existing header after successful login.
+const headerControls = document.querySelector('header .max-w-7xl > .flex.items-center.gap-2');
+if (headerControls) {
+  const logoutButton = document.createElement('button');
+  logoutButton.type = 'button';
+  logoutButton.textContent = 'Logout';
+  logoutButton.className = 'px-3 py-2 rounded-xl bg-rose-500/15 text-rose-500 text-xs font-semibold hover:bg-rose-500/25';
+  logoutButton.addEventListener('click', () => {
+    localStorage.removeItem('campusfind_token');
+    sessionStorage.removeItem('campusfind_logged_in');
+    sessionStorage.removeItem('campusfind_active_user');
+    document.body.classList.remove('campusfind-authenticated');
+    document.getElementById('login-screen').classList.remove('hidden');
+    document.getElementById('login-first-form').reset();
+    setLoginMode('login');
+  });
+  headerControls.appendChild(logoutButton);
+}
+
+
+// ===== MongoDB API integration =====
+async function loadCampusFindMongoItems() {
+  try {
+    const response = await fetch('/api/reports', {
+      headers: { Authorization: 'Bearer ' + (localStorage.getItem('campusfind_token') || '') }
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || 'Could not load reports.');
+    const remote = data.reports.map(r => ({
+      id: r._id, type: r.type, images: r.images || [], title: r.title, category: r.category,
+      description: r.description, date: String(r.date).slice(0,10), location: r.location,
+      storageLocation: r.storageLocation || '', status: r.status, serial: r.serial || '',
+      reward: r.reward || '', contact: r.contact || '', reporterId: r.owner?._id || '',
+      reporterName: r.owner?.name || 'Student', approved: true, archived: false,
+      icon: 'bag', color: r.type === 'found' ? 'from-emerald-500 to-teal-600' : 'from-rose-500 to-orange-500'
+    }));
+    // Keep the built-in demo/sample cards and replace reports previously loaded from API.
+    const demo = state.items.filter(i => !i.mongoRecord);
+    state.items = [...remote.map(i => ({...i, mongoRecord:true})), ...demo];
+    renderApp();
+  } catch (e) { console.error('MongoDB reports:', e.message); }
+}
+
+</script>
+</body>
+</html>
