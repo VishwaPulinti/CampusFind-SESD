@@ -614,107 +614,97 @@ function renderNav() {
   `).join('');
 }
 
+// ==================== MAIN APP RENDER ====================
+
 function renderApp() {
   renderNav();
   updateNotifBadge();
+
   const view = document.getElementById('app-view');
+
   if (state.role === 'user') {
-    if (state.userTab === 'dashboard') view.innerHTML = renderUserDashboard();
-    else if (state.userTab === 'search') view.innerHTML = renderSearchGallery();
-    else if (state.userTab === 'report-lost') view.innerHTML = renderReportForm('lost');
-    else if (state.userTab === 'report-found') view.innerHTML = renderReportForm('found');
-    else if (state.userTab === 'claims') view.innerHTML = renderUserClaims();
-    else if (state.userTab === 'profile') view.innerHTML = renderUserProfile();
+
+    if (state.userTab === 'dashboard') {
+      view.innerHTML = renderUserDashboard();
+    }
+    else if (state.userTab === 'search') {
+      view.innerHTML = renderSearchGallery();
+    }
+    else if (state.userTab === 'report-lost') {
+      view.innerHTML = renderReportForm('lost');
+    }
+    else if (state.userTab === 'report-found') {
+      view.innerHTML = renderReportForm('found');
+    }
+    else if (state.userTab === 'claims') {
+      view.innerHTML = renderUserClaims();
+    }
+    else if (state.userTab === 'profile') {
+      view.innerHTML = renderUserProfile();
+    }
+
   } else {
+
     if (state.adminTab === 'dashboard') {
       view.innerHTML = renderAdminDashboard();
       setTimeout(renderAdminCharts, 30);
+      loadAdminStats();
     }
-    else if (state.adminTab === 'claims') view.innerHTML = renderAdminClaims();
-    else if (state.adminTab === 'items') view.innerHTML = renderAdminItems();
-    else if (state.adminTab === 'users') view.innerHTML = renderAdminUsers();
-    else if (state.adminTab === 'reports') view.innerHTML = renderAdminReports();
-    else if (state.adminTab === 'settings') view.innerHTML = renderAdminSettings();
+    else if (state.adminTab === 'claims') {
+      view.innerHTML = renderAdminClaims();
+    }
+    else if (state.adminTab === 'items') {
+      view.innerHTML = renderAdminItems();
+    }
+    else if (state.adminTab === 'users') {
+      view.innerHTML = renderAdminUsers();
+    }
+    else if (state.adminTab === 'reports') {
+      view.innerHTML = renderAdminReports();
+    }
+    else if (state.adminTab === 'settings') {
+      view.innerHTML = renderAdminSettings();
+    }
   }
 }
 
-// ==================== USER PORTAL VIEWS ====================
-function renderUserDashboard() {
-  const lostCount = state.items.filter(i => i.type === 'lost' && !i.archived).length;
-  const foundCount = state.items.filter(i => i.type === 'found' && !i.archived).length;
-  const pendingClaims = state.claims.filter(c => c.status === 'Pending').length;
-  const returnedCount = state.items.filter(i => i.status === 'Returned').length;
 
-  return `
-    <div class="space-y-6">
-      <!-- Hero Banner -->
-      <div class="glass-card rounded-2xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <span class="text-xs font-semibold uppercase tracking-wider text-brand-600 dark:text-brand-400">Welcome back, ${state.currentUser.name}</span>
-          <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1">Smart Campus Lost &amp; Found</h1>
-          <p class="text-sm text-slate-600 dark:text-slate-400 mt-1 max-w-2xl">Report lost or found belongings, discover AI-matched items across campus, and verify ownership securely.</p>
-        </div>
-        <div class="flex flex-wrap gap-2.5">
-          <button onclick="setTab('report-lost')" class="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold shadow-sm transition">+ Report Lost</button>
-          <button onclick="setTab('report-found')" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold shadow-sm transition">+ Report Found</button>
-        </div>
-      </div>
+// ==================== LOAD ADMIN STATISTICS FROM MONGODB ====================
 
-      <!-- KPI Grid -->
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        ${kpiCard('Total Lost Items', lostCount, 'Active campus reports', 'text-rose-500')}
-        ${kpiCard('Total Found Items', foundCount, 'Held at security desks', 'text-emerald-500')}
-        ${kpiCard('Pending Claims', pendingClaims, 'Awaiting verification', 'text-amber-500')}
-        ${kpiCard('Claimed & Returned', returnedCount, 'Verified handovers', 'text-cyan-500')}
-      </div>
+async function loadAdminStats() {
 
-      <!-- AI Smart Match Banner -->
-      <div class="glass-card rounded-2xl p-5 border-l-4 border-l-brand-500">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div class="flex items-start gap-3">
-            <div class="w-10 h-10 rounded-xl bg-brand-500/15 text-brand-500 flex items-center justify-center shrink-0 font-bold text-sm">AI</div>
-            <div>
-              <div class="flex items-center gap-2 flex-wrap">
-                <h3 class="font-bold text-base">AI Smart Match Detected — 96% Confidence</h3>
-                <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-brand-500/15 text-brand-500">Serial + Location Match</span>
-              </div>
-              <p class="text-sm text-slate-600 dark:text-slate-400 mt-1">Found item <strong>Apple MacBook Air M2</strong> at Central Library matches your lost report <strong>ITM-202</strong>.</p>
-            </div>
-          </div>
-          <button onclick="openClaimModal('ITM-201')" class="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs sm:text-sm font-semibold shrink-0 transition">
-            Claim This Item
-          </button>
-        </div>
-      </div>
+  const token = localStorage.getItem('campusfind_token');
 
-      <!-- Recent Items & Notifications -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-2 space-y-3">
-          <div class="flex items-center justify-between">
-            <h2 class="text-lg font-bold">Recent Campus Items</h2>
-            <button onclick="setTab('search')" class="text-xs font-semibold text-brand-600 dark:text-brand-400 hover:underline">View All →</button>
-          </div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            ${state.items.filter(i => !i.archived && i.approved).slice(0, 4).map(itemCard).join('')}
-          </div>
-        </div>
-        <div class="space-y-3">
-          <h2 class="text-lg font-bold">Latest Notifications</h2>
-          <div class="glass-card rounded-2xl p-4 space-y-3">
-            ${state.notifications.slice(0, 4).map(n => `
-              <div class="p-3 rounded-xl bg-slate-100/80 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/50">
-                <div class="flex items-center justify-between gap-2">
-                  <span class="text-xs font-bold text-brand-600 dark:text-brand-400">${n.title}</span>
-                  <span class="text-[10px] text-slate-500">${n.time}</span>
-                </div>
-                <p class="text-xs text-slate-600 dark:text-slate-300 mt-1">${n.message}</p>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
+  if (!token) {
+    console.error('Login token not found.');
+    return;
+  }
+
+  try {
+
+    const response = await fetch('/api/admin/stats', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Unable to load admin statistics.');
+    }
+
+    const stats = await response.json();
+
+    // Save real MongoDB statistics
+    state.adminStats = stats;
+
+    console.log('MongoDB Admin Statistics:', stats);
+
+  } catch (error) {
+
+    console.error('Admin statistics error:', error);
+
+  }
 }
 
 function kpiCard(title, value, sub, colorClass) {
@@ -1190,47 +1180,244 @@ function submitClaim(e, itemId) {
   showToast(`Claim ${newClaim.id} submitted for verification!`, 'success');
   renderApp();
 }
+// ==================== USER PORTAL DASHBOARD ====================
 
-// ==================== ADMIN PORTAL VIEWS ====================
-function renderAdminDashboard() {
-  const approved = state.claims.filter(c => c.status === 'Approved').length;
-  const pending = state.claims.filter(c => c.status === 'Pending').length;
-  const rejected = state.claims.filter(c => c.status === 'Rejected').length;
+function renderUserDashboard() {
+
+  const lostCount = state.items.filter(
+    i => i.type === 'lost' && !i.archived
+  ).length;
+
+  const foundCount = state.items.filter(
+    i => i.type === 'found' && !i.archived
+  ).length;
+
+  const pendingClaims = state.claims.filter(
+    c => c.status === 'Pending'
+  ).length;
+
+  const returnedCount = state.items.filter(
+    i => i.status === 'Returned'
+  ).length;
+
   return `
     <div class="space-y-6">
+
+      <div class="glass-card rounded-2xl p-6">
+        <h1 class="text-2xl sm:text-3xl font-extrabold">
+          Welcome back, ${state.currentUser.name}
+        </h1>
+        <p class="text-sm text-slate-600 dark:text-slate-400 mt-2">
+          Smart Campus Lost & Found Management System
+        </p>
+      </div>
+
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        ${kpiCard('Total Registered Users', state.users.length, 'Students, Faculty & Staff', 'text-brand-500')}
-        ${kpiCard('Total Lost / Found', state.items.length, `${state.items.filter(i=>i.type==='lost').length} Lost • ${state.items.filter(i=>i.type==='found').length} Found`, 'text-cyan-500')}
-        ${kpiCard('Pending Claims', pending, 'Requires evidence review', 'text-amber-500')}
-        ${kpiCard('Approved / Rejected', `${approved} / ${rejected}`, 'Claim resolution rate', 'text-emerald-500')}
+
+        ${kpiCard(
+          'Total Lost Items',
+          lostCount,
+          'Active campus reports',
+          'text-rose-500'
+        )}
+
+        ${kpiCard(
+          'Total Found Items',
+          foundCount,
+          'Found campus belongings',
+          'text-emerald-500'
+        )}
+
+        ${kpiCard(
+          'Pending Claims',
+          pendingClaims,
+          'Awaiting verification',
+          'text-amber-500'
+        )}
+
+        ${kpiCard(
+          'Claimed & Returned',
+          returnedCount,
+          'Verified handovers',
+          'text-cyan-500'
+        )}
+
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-2 glass-card rounded-2xl p-5">
-          <h3 class="font-bold text-base mb-3">Monthly Lost vs. Found &amp; Returned Trends</h3>
-          <div class="relative h-72"><canvas id="adminTrendChart"></canvas></div>
+
+        <div class="lg:col-span-2 space-y-3">
+          <h2 class="text-lg font-bold">Recent Campus Items</h2>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            ${state.items
+              .filter(i => !i.archived && i.approved)
+              .slice(0, 4)
+              .map(itemCard)
+              .join('')}
+          </div>
         </div>
-        <div class="glass-card rounded-2xl p-5">
-          <h3 class="font-bold text-base mb-3">Items by Category</h3>
-          <div class="relative h-72"><canvas id="adminCatChart"></canvas></div>
+
+        <div class="space-y-3">
+          <h2 class="text-lg font-bold">Latest Notifications</h2>
+
+          <div class="glass-card rounded-2xl p-4 space-y-3">
+            ${state.notifications.slice(0, 4).map(n => `
+              <div class="p-3 rounded-xl bg-slate-100/80 dark:bg-slate-800/60">
+                <div class="flex justify-between gap-2">
+                  <span class="text-xs font-bold text-brand-600">
+                    ${n.title}
+                  </span>
+                  <span class="text-[10px] text-slate-500">
+                    ${n.time}
+                  </span>
+                </div>
+                <p class="text-xs mt-1">${n.message}</p>
+              </div>
+            `).join('')}
+          </div>
         </div>
+
       </div>
 
-      <div class="glass-card rounded-2xl p-5">
-        <h3 class="font-bold text-base mb-3">Recent Security &amp; Audit Logs</h3>
-        <div class="space-y-2 text-xs">
-          ${state.activityLogs.slice(0, 6).map(l => `
-            <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/60">
-              <span><strong class="text-brand-500">${l.actor}</strong> — ${l.action}</span>
-              <span class="text-slate-500 shrink-0 ml-2">${l.time}</span>
-            </div>
-          `).join('')}
-        </div>
-      </div>
     </div>
   `;
 }
 
+function renderAdminDashboard() {
+
+  const stats = state.adminStats || {};
+
+  // Claim counts are currently from frontend state
+  const approved = state.claims.filter(c => c.status === 'Approved').length;
+  const pending = state.claims.filter(c => c.status === 'Pending').length;
+  const rejected = state.claims.filter(c => c.status === 'Rejected').length;
+
+  // Use MongoDB statistics when available
+  const totalUsers = stats.totalUsers ?? state.users.length;
+  const totalReports = stats.totalReports ?? state.items.length;
+  const lostReports = stats.lostReports ??
+    state.items.filter(i => i.type === 'lost').length;
+  const foundReports = stats.foundReports ??
+    state.items.filter(i => i.type === 'found').length;
+
+  return `
+    <div class="space-y-6">
+
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+
+        ${kpiCard(
+          'Total Registered Users',
+          totalUsers,
+          'Students, Faculty & Staff',
+          'text-brand-500'
+        )}
+
+        ${kpiCard(
+          'Total Lost / Found',
+          totalReports,
+          `${lostReports} Lost • ${foundReports} Found`,
+          'text-cyan-500'
+        )}
+
+        ${kpiCard(
+          'Pending Claims',
+          pending,
+          'Requires evidence review',
+          'text-amber-500'
+        )}
+
+        ${kpiCard(
+          'Approved / Rejected',
+          `${approved} / ${rejected}`,
+          'Claim resolution rate',
+          'text-emerald-500'
+        )}
+
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <div class="lg:col-span-2 glass-card rounded-2xl p-5">
+          <h3 class="font-bold text-base mb-3">
+            Monthly Lost vs. Found &amp; Returned Trends
+          </h3>
+          <div class="relative h-72">
+            <canvas id="adminTrendChart"></canvas>
+          </div>
+        </div>
+
+        <div class="glass-card rounded-2xl p-5">
+          <h3 class="font-bold text-base mb-3">
+            Items by Category
+          </h3>
+          <div class="relative h-72">
+            <canvas id="adminCatChart"></canvas>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="glass-card rounded-2xl p-5">
+        <h3 class="font-bold text-base mb-3">
+          Recent Security &amp; Audit Logs
+        </h3>
+
+        <div class="space-y-2 text-xs">
+          ${state.activityLogs.slice(0, 6).map(l => `
+            <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/60">
+              <span>
+                <strong class="text-brand-500">${l.actor}</strong>
+                — ${l.action}
+              </span>
+              <span class="text-slate-500 shrink-0 ml-2">
+                ${l.time}
+              </span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+    </div>
+  `;
+}
+
+
+// ==================== LOAD ADMIN STATISTICS FROM MONGODB ====================
+
+async function loadAdminStats() {
+  const token = localStorage.getItem('campusfind_token');
+
+  if (!token || state.role !== 'admin') return;
+
+  try {
+    const response = await fetch('/api/admin/stats', {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Unable to load admin statistics.');
+    }
+
+    const stats = await response.json();
+
+    state.adminStats = stats;
+
+    // Update only if the Admin Dashboard is still open
+    if (state.role === 'admin' && state.adminTab === 'dashboard') {
+      const view = document.getElementById('app-view');
+
+      view.innerHTML = renderAdminDashboard();
+      setTimeout(renderAdminCharts, 30);
+    }
+
+  } catch (error) {
+    console.error('Admin statistics error:', error);
+  }
+}
 function renderAdminCharts() {
   const isDark = document.documentElement.classList.contains('dark');
   const textColor = isDark ? '#cbd5e1' : '#334155';
@@ -1692,23 +1879,45 @@ function campusFindUsers() {
   catch { return []; }
 }
 
+// ==================== ENTER CAMPUSFIND ====================
+
 function enterCampusFind(user) {
+
+  // Set the correct portal based on the logged-in account
+  state.role = user.role === 'admin' ? 'admin' : 'user';
+
+  // Store current user details
   state.currentUser = {
     ...state.currentUser,
-    id: user.id || ('USR-' + Date.now()),
+    id: user.id || user._id || ('USR-' + Date.now()),
     name: user.name,
     email: user.email,
-    role: 'Student',
+    role: user.role === 'admin' ? 'Admin' : 'Student',
     verified: true,
     status: 'Active'
   };
+
+  // Save login session
   sessionStorage.setItem('campusfind_logged_in', 'yes');
   sessionStorage.setItem('campusfind_active_user', JSON.stringify(user));
+
+  // Update header
   document.getElementById('header-user-name').textContent = user.name;
-  document.getElementById('header-avatar').textContent = user.name.split(/\s+/).map(x => x[0]).join('').slice(0,2).toUpperCase();
+
+  document.getElementById('header-avatar').textContent =
+    user.name.split(/\s+/)
+      .map(x => x[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase();
+
+  // Show CampusFind application
   document.getElementById('login-screen').classList.add('hidden');
   document.body.classList.add('campusfind-authenticated');
+
+  // Render the correct portal
   renderApp();
+
   showToast('Welcome to CampusFind, ' + user.name + '!', 'success');
 }
 
@@ -1730,7 +1939,7 @@ document.getElementById('login-first-form').addEventListener('submit', async fun
     const data = await response.json();
     if (!response.ok) throw new Error(data.message || 'Unable to authenticate.');
     localStorage.setItem('campusfind_token', data.token);
-    enterCampusFind({ id: data.user.id, name: data.user.name, email: data.user.email });
+    enterCampusFind(data.user);
     await loadCampusFindMongoItems();
   } catch (err) { error.textContent = err.message; }
   finally { submit.disabled = false; submit.textContent = campusFindLoginMode === 'login' ? 'Login to Dashboard' : 'Create Account'; }
