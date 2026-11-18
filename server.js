@@ -8,6 +8,7 @@ app.use(express.static(path.join(__dirname,'public')));
 app.get('/api/health',(req,res)=>res.json({status:'ok'}));
 app.use('/api/auth',require('./src/routes/auth'));
 app.use('/api/reports',require('./src/routes/reports'));
+app.use('/api/claims', require('./src/routes/claims'));
 app.use('/api/admin', require('./src/routes/admin'));
 app.use((err,req,res,next)=>{console.error(err);res.status(err.code==='LIMIT_FILE_SIZE'?400:500).json({message:err.code==='LIMIT_FILE_SIZE'?'Each image must be 5 MB or smaller.':err.message||'Server error'});});
 mongoose.connect(process.env.MONGODB_URI).then(()=>app.listen(port,()=>console.log(`CampusFind running at http://localhost:${port}`))).catch(e=>{console.error('MongoDB connection failed:',e.message);process.exit(1)});

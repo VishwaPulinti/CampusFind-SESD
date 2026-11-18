@@ -2,7 +2,6 @@ const router = require('express').Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const auth = require('../middleware/auth');
 
 const generateToken = (user) => {
   return jwt.sign(
@@ -17,12 +16,10 @@ const userResponse = (user) => ({
   name: user.name,
   email: user.email,
   role: user.role,
-  status: user.status,
-  phone: user.phone,
-  department: user.department
+  status: user.status
 });
 
-// REGISTER — everyone registering publicly becomes a student
+// REGISTER
 router.post('/register', async (req, res, next) => {
   try {
     const { name, email, password } = req.body;
@@ -39,9 +36,13 @@ router.post('/register', async (req, res, next) => {
       });
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedEmail = email.toLowerCase().trim();
 
-    if (await User.findOne({ email: normalizedEmail })) {
+    const existingUser = await User.findOne({
+      email: normalizedEmail
+    });
+
+    if (existingUser) {
       return res.status(409).json({
         message: 'Email is already registered.'
       });
@@ -51,15 +52,13 @@ router.post('/register', async (req, res, next) => {
       name: name.trim(),
       email: normalizedEmail,
       password: await bcrypt.hash(password, 12),
-      role: 'student',
-      status: 'active'
+      role: 'student'
     });
 
     res.status(201).json({
       token: generateToken(user),
       user: userResponse(user)
     });
-
   } catch (error) {
     next(error);
   }
@@ -68,11 +67,12 @@ router.post('/register', async (req, res, next) => {
 // LOGIN
 router.post('/login', async (req, res, next) => {
   try {
-    const email = (req.body.email || '').trim().toLowerCase();
+    const email = (req.body.email || '').toLowerCase().trim();
+    const password = req.body.password || '';
 
     const user = await User.findOne({ email });
 
-    if (!user || !(await bcrypt.compare(req.body.password || '', user.password))) {
+    if (!user || !(await bcrypt.compare(password, user.password))) {
       return res.status(401).json({
         message: 'Invalid email or password.'
       });
@@ -80,7 +80,7 @@ router.post('/login', async (req, res, next) => {
 
     if (user.status === 'suspended') {
       return res.status(403).json({
-        message: 'Your account has been suspended. Contact the administrator.'
+        message: 'Your account has been suspended.'
       });
     }
 
@@ -88,39 +88,6 @@ router.post('/login', async (req, res, next) => {
       token: generateToken(user),
       user: userResponse(user)
     });
-
-  } catch (error) {
-    next(error);
-  }
-});
-
-// GET CURRENT USER PROFILE
-router.get('/me', auth, (req, res) => {
-  res.json({ user: userResponse(req.user) });
-});
-
-// UPDATE CURRENT USER PROFILE
-router.put('/me', auth, async (req, res, next) => {
-  try {
-    const { name, phone, department } = req.body;
-
-    if (!name || !name.trim()) {
-      return res.status(400).json({
-        message: 'Name is required.'
-      });
-    }
-
-    req.user.name = name.trim();
-    req.user.phone = phone || '';
-    req.user.department = department || '';
-
-    await req.user.save();
-
-    res.json({
-      message: 'Profile updated successfully.',
-      user: userResponse(req.user)
-    });
-
   } catch (error) {
     next(error);
   }

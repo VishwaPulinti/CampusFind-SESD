@@ -1,39 +1,78 @@
-CAMPUSFIND COMPLETE FULL-STACK PROJECT
+CAMPUSFIND – FULL-STACK SESD PROJECT (API-EXTENDED BUILD)
+========================================================
 
-INCLUDED
-- Frontend: HTML, CSS, JavaScript (existing CampusFind dashboard design retained)
-- Backend: Node.js + Express REST API
-- Database: MongoDB via Mongoose
-- Student registration/login with bcrypt password hashing and JWT
-- Lost and Found report submission
-- Mandatory item photos (up to 5 images, 5 MB each)
-- Uploaded image files saved in /uploads and paths stored in MongoDB
-- Existing sample item cards/photos retained in the dashboard
-- Search/list reports from MongoDB
+STACK
+- Frontend: existing CampusFind HTML/CSS/JavaScript design in public/index.html
+- Backend: Node.js + Express
+- Database: MongoDB + Mongoose
+- Authentication: bcrypt password hashing + JWT
+- Uploads: Multer (images and claim proof files)
 
-REQUIREMENTS
-- Node.js LTS
-- MongoDB Community Server running locally, OR MongoDB Atlas URI
-
-SETUP IN VS CODE
-1. Extract ZIP and open the CampusFind_FullStack_Complete folder.
-2. Open terminal in this folder (the folder containing package.json).
-3. Install:
-   npm install
-4. Create .env:
-   Copy-Item .env.example .env
+LOCAL SETUP
+1. Install Node.js LTS and MongoDB Community Server, or create a MongoDB Atlas database.
+2. Open this project root folder in VS Code.
+3. Run: npm install
+4. Copy .env.example to .env
+   PowerShell: Copy-Item .env.example .env
 5. Edit .env:
    PORT=5000
-   MONGODB_URI=mongodb://127.0.0.1:27017/campusfind
-   JWT_SECRET=use_a_long_random_secret
-   (For Atlas, replace MONGODB_URI with your Atlas connection string.)
-6. Ensure MongoDB service is running locally, or use Atlas.
-7. Start:
-   npm start
-8. Open:
-   http://localhost:5000
+   MONGODB_URI=your_mongodb_connection_string
+   JWT_SECRET=replace_with_a_long_random_secret
+   ADMIN_EMAILS=your-real-admin-email@yourdomain.edu
+6. Run: npm start
+7. Open http://localhost:5000
 
-IMPORTANT
-- Do not open public/index.html directly with file:// and do not use Python http.server.
-- This is a student project starter. Review and strengthen access controls, validation, admin authorization, HTTPS, and file storage before production deployment.
-- The existing dashboard includes demo/sample records for visual presentation; newly submitted reports are stored in MongoDB.
+IMPORTANT ADMIN SETUP
+- Put the exact email address you will use for the administrator in ADMIN_EMAILS.
+- Register/login using that email. It receives the admin role automatically.
+- Never publish your .env file or JWT secret to GitHub.
+- If an admin account was created before setting ADMIN_EMAILS, log out and log in again after updating .env.
+
+RENDER DEPLOYMENT
+- Create a Web Service connected to this GitHub repository.
+- Build command: npm install
+- Start command: npm start
+- Add environment variables in Render dashboard: MONGODB_URI, JWT_SECRET, ADMIN_EMAILS.
+- Use MongoDB Atlas for persistent database storage.
+- Render's local filesystem may be ephemeral. For persistent uploaded photos, configure a persistent disk or move uploads to object storage (for example Cloudinary/S3) before production use.
+- After deployment, test: https://YOUR-SERVICE.onrender.com/api/health
+
+BACKEND API
+Authentication:
+ POST /api/auth/register       {name,email,password}
+ POST /api/auth/login          {email,password}
+
+Reports (Bearer token required):
+ GET    /api/reports           optional ?type=lost|found&search=term
+ GET    /api/reports/mine
+ POST   /api/reports           multipart form; images field required (up to 5)
+
+Claims (Bearer token required):
+ POST /api/claims              multipart: itemId, description, proofFiles (up to 5)
+ GET  /api/claims/mine
+
+Admin API (Bearer token + admin role required):
+ GET    /api/admin/overview
+ GET    /api/admin/claims
+ PATCH  /api/admin/claims/:id  {decision:"Approved"|"Rejected",adminNotes}
+ GET    /api/admin/users
+ PATCH  /api/admin/users/:id/status {status:"active"|"suspended"}
+ GET    /api/admin/items
+ PATCH  /api/admin/items/:id/archive
+ DELETE /api/admin/items/:id
+ GET/POST /api/admin/settings  {kind:"category"|"location",name}
+ DELETE /api/admin/settings/:id
+ GET/POST /api/admin/announcements {title,message}
+ GET    /api/admin/export/items.csv
+ GET    /api/admin/export/claims.csv
+
+API AUTHORIZATION
+For protected endpoints send:
+Authorization: Bearer YOUR_JWT_TOKEN
+
+PROJECT NOTES
+- Passwords are hashed; passwords are never returned by user APIs.
+- Claim submissions and moderation decisions persist in MongoDB.
+- Admin endpoints enforce server-side role checks; hiding an admin tab in the browser is not security.
+- The existing public/index.html is retained to preserve the CampusFind visual design. Some original dashboard sections are still client-side demo interactions; connect their buttons/forms to the API endpoints above before presenting every UI action as live. The API layer is implemented, but browser UI wiring and end-to-end verification should be completed against your deployed database before final submission.
+- Uploaded files are written to /uploads and are served from /uploads/<filename>.

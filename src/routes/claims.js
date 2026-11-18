@@ -1,0 +1,8 @@
+const router=require('express').Router(),multer=require('multer'),path=require('path'),fs=require('fs');
+const Claim=require('../models/Claim'),Report=require('../models/Report'),auth=require('../middleware/auth');
+const dir=path.join(__dirname,'../../uploads');const storage=multer.diskStorage({destination:(r,f,cb)=>cb(null,dir),filename:(r,f,cb)=>cb(null,Date.now()+'-'+Math.round(Math.random()*1e9)+path.extname(f.originalname).toLowerCase())});
+const upload=multer({storage,limits:{fileSize:5*1024*1024,files:5},fileFilter:(r,f,cb)=>cb(null,['image/jpeg','image/png','image/webp','application/pdf'].includes(f.mimetype))});
+router.use(auth);
+router.post('/',upload.array('proofFiles',5),async(req,res,next)=>{try{const {itemId,description}=req.body;if(!itemId||!description)return res.status(400).json({message:'Item and claim explanation are required.'});const item=await Report.findById(itemId);if(!item)return res.status(404).json({message:'Item not found.'});if(String(item.owner)===String(req.user._id))return res.status(400).json({message:'You cannot claim your own report.'});const claim=await Claim.create({item:itemId,claimant:req.user._id,description,proofFiles:(req.files||[]).map(f=>'/uploads/'+f.filename)});item.status='Claim Pending';await item.save();res.status(201).json({claim});}catch(e){if(e.code===11000)return res.status(409).json({message:'You have already submitted a claim for this item.'});next(e)}});
+router.get('/mine',async(req,res,next)=>{try{res.json({claims:await Claim.find({claimant:req.user._id}).populate('item').sort({createdAt:-1})})}catch(e){next(e)}});
+module.exports=router;

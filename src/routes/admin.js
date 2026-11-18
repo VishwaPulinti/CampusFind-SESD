@@ -1,94 +1,19 @@
-const router = require('express').Router();
-const User = require('../models/User');
-const Report = require('../models/Report');
-
-const auth = require('../middleware/auth');
-const admin = require('../middleware/admin');
-
-// All routes below require admin access
-router.use(auth, admin);
-
-// GET ALL USERS
-router.get('/users', async (req, res, next) => {
-  try {
-    const users = await User.find()
-      .select('-password')
-      .sort({ createdAt: -1 });
-
-    res.json({ users });
-  } catch (error) {
-    next(error);
-  }
-});
-
-// ACTIVATE OR SUSPEND A USER
-router.patch('/users/:id/status', async (req, res, next) => {
-  try {
-    const { status } = req.body;
-
-    if (!['active', 'suspended'].includes(status)) {
-      return res.status(400).json({
-        message: 'Invalid account status.'
-      });
-    }
-
-    if (req.params.id === String(req.user._id)) {
-      return res.status(400).json({
-        message: 'You cannot change your own account status.'
-      });
-    }
-
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { status },
-      { new: true, runValidators: true }
-    ).select('-password');
-
-    if (!user) {
-      return res.status(404).json({
-        message: 'User not found.'
-      });
-    }
-
-    res.json({
-      message: 'User status updated.',
-      user
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
-// ADMIN DASHBOARD ANALYTICS
-router.get('/stats', async (req, res, next) => {
-  try {
-    const [
-      totalUsers,
-      activeUsers,
-      suspendedUsers,
-      totalReports,
-      lostReports,
-      foundReports
-    ] = await Promise.all([
-      User.countDocuments(),
-      User.countDocuments({ status: 'active' }),
-      User.countDocuments({ status: 'suspended' }),
-      Report.countDocuments(),
-      Report.countDocuments({ type: 'lost' }),
-      Report.countDocuments({ type: 'found' })
-    ]);
-
-    res.json({
-      totalUsers,
-      activeUsers,
-      suspendedUsers,
-      totalReports,
-      lostReports,
-      foundReports
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
-module.exports = router;
+const router=require('express').Router();const auth=require('../middleware/auth'),admin=require('../middleware/admin');
+const User=require('../models/User'),Report=require('../models/Report'),Claim=require('../models/Claim'),Setting=require('../models/Setting'),Announcement=require('../models/Announcement');
+router.use(auth,admin);
+router.get('/overview',async(req,res,next)=>{try{const [users,lost,found,pending,approved,rejected]=await Promise.all([User.countDocuments(),Report.countDocuments({type:'lost'}),Report.countDocuments({type:'found'}),Claim.countDocuments({status:'Pending'}),Claim.countDocuments({status:'Approved'}),Claim.countDocuments({status:'Rejected'})]);res.json({users,lost,found,pending,approved,rejected,totalItems:lost+found});}catch(e){next(e)}});
+router.get('/claims',async(req,res,next)=>{try{res.json({claims:await Claim.find().populate('item').populate('claimant','name email').sort({createdAt:-1})})}catch(e){next(e)}});
+router.patch('/claims/:id',async(req,res,next)=>{try{const {decision,adminNotes=''}=req.body;if(!['Approved','Rejected'].includes(decision))return res.status(400).json({message:'Decision must be Approved or Rejected.'});const c=await Claim.findById(req.params.id).populate('item');if(!c)return res.status(404).json({message:'Claim not found.'});c.status=decision;c.adminNotes=adminNotes;await c.save();if(c.item){c.item.status=decision==='Approved'?'Returned':'Available';await c.item.save()}res.json({claim:c});}catch(e){next(e)}});
+router.get('/users',async(req,res,next)=>{try{res.json({users:await User.find().select('-password').sort({createdAt:-1})})}catch(e){next(e)}});
+router.patch('/users/:id/status',async(req,res,next)=>{try{if(String(req.user._id)===req.params.id)return res.status(400).json({message:'You cannot suspend your own account.'});const status=req.body.status;if(!['active','suspended'].includes(status))return res.status(400).json({message:'Invalid status.'});const u=await User.findByIdAndUpdate(req.params.id,{status},{new:true}).select('-password');if(!u)return res.status(404).json({message:'User not found.'});res.json({user:u})}catch(e){next(e)}});
+router.get('/items',async(req,res,next)=>{try{res.json({items:await Report.find().populate('owner','name email').sort({createdAt:-1})})}catch(e){next(e)}});
+router.patch('/items/:id/archive',async(req,res,next)=>{try{const x=await Report.findByIdAndUpdate(req.params.id,{status:'Archived'},{new:true});if(!x)return res.status(404).json({message:'Item not found.'});res.json({item:x})}catch(e){next(e)}});
+router.delete('/items/:id',async(req,res,next)=>{try{const x=await Report.findByIdAndDelete(req.params.id);if(!x)return res.status(404).json({message:'Item not found.'});await Claim.deleteMany({item:x._id});res.json({message:'Item and related claims deleted.'})}catch(e){next(e)}});
+router.get('/settings',async(req,res,next)=>{try{res.json({settings:await Setting.find().sort({kind:1,name:1})})}catch(e){next(e)}});
+router.post('/settings',async(req,res,next)=>{try{const {kind,name}=req.body;if(!['category','location'].includes(kind)||!name?.trim())return res.status(400).json({message:'Valid setting type and name are required.'});const s=await Setting.create({kind,name:name.trim()});res.status(201).json({setting:s})}catch(e){if(e.code===11000)return res.status(409).json({message:'This setting already exists.'});next(e)}});
+router.delete('/settings/:id',async(req,res,next)=>{try{await Setting.findByIdAndDelete(req.params.id);res.json({message:'Setting removed.'})}catch(e){next(e)}});
+router.post('/announcements',async(req,res,next)=>{try{const {title,message}=req.body;if(!title?.trim()||!message?.trim())return res.status(400).json({message:'Title and message are required.'});const a=await Announcement.create({title:title.trim(),message:message.trim(),createdBy:req.user._id});res.status(201).json({announcement:a})}catch(e){next(e)}});
+router.get('/announcements',async(req,res,next)=>{try{res.json({announcements:await Announcement.find().sort({createdAt:-1})})}catch(e){next(e)}});
+router.get('/export/items.csv',async(req,res,next)=>{try{const rows=await Report.find().populate('owner','name email').lean();const esc=v=>'"'+String(v??'').replace(/"/g,'""')+'"';const csv=['ID,Type,Title,Category,Date,Location,Status,Owner,Email',...rows.map(x=>[x._id,x.type,x.title,x.category,x.date?.toISOString?.()||x.date,x.location,x.status,x.owner?.name,x.owner?.email].map(esc).join(','))].join('\r\n');res.setHeader('Content-Type','text/csv');res.setHeader('Content-Disposition','attachment; filename="campusfind-items.csv"');res.send(csv)}catch(e){next(e)}});
+router.get('/export/claims.csv',async(req,res,next)=>{try{const rows=await Claim.find().populate('item','title').populate('claimant','name email').lean();const esc=v=>'"'+String(v??'').replace(/"/g,'""')+'"';const csv=['ID,Item,Claimant,Email,Status,Admin Notes,Submitted',...rows.map(x=>[x._id,x.item?.title,x.claimant?.name,x.claimant?.email,x.status,x.adminNotes,x.createdAt?.toISOString?.()].map(esc).join(','))].join('\r\n');res.setHeader('Content-Type','text/csv');res.setHeader('Content-Disposition','attachment; filename="campusfind-claims.csv"');res.send(csv)}catch(e){next(e)}});
+module.exports=router;
